@@ -1,1 +1,4 @@
 resolver: lts-9.0
+
+extra-deps:
+  - barrier-0.1.1
