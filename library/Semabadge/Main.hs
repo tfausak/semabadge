@@ -5,7 +5,7 @@ module Semabadge.Main
   ) where
 
 import qualified Control.Exception as Exception
-import qualified Data.Aeson as Aeson
+import qualified Data.Aeson as Aeson (eitherDecode, encode)
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
@@ -148,9 +148,9 @@ instance Aeson.FromJSON ServerStatus where
   parseJSON =
     Aeson.genericParseJSON
       Aeson.defaultOptions
-      { Aeson.fieldLabelModifier =
-          Aeson.camelTo2 '_' . unsafeDropPrefix "serverStatus"
-      }
+        { Aeson.fieldLabelModifier =
+            Aeson.camelTo2 '_' . unsafeDropPrefix "serverStatus"
+        }
 
 unsafeDropPrefix :: (Eq a, Show a) => [a] -> [a] -> [a]
 unsafeDropPrefix prefix list =

@@ -14,13 +14,13 @@ maintainer: Taylor Fausak
 synopsis: Generates deploy badges for Semaphore.
 
 dependencies:
-  aeson: '>= 1.1.2 && < 1.2'
+  aeson: '>= 1.1.2 && < 1.3'
   barrier: '>= 0.1.1 && < 0.2'
-  base: '>= 4.9.1 && < 4.10'
+  base: '>= 4.9.1 && < 4.12'
   bytestring: '>= 0.10.8 && < 0.11'
   http-client-tls: '>= 0.3.5 && < 0.4'
   http-client: '>= 0.5.7 && < 0.6'
-  http-types: '>= 0.9.1 && < 0.10'
+  http-types: '>= 0.9.1 && < 0.13'
   lens-family-core: '>= 1.2.1 && < 1.3'
   text: '>= 1.2.2 && < 1.3'
   wai: '>= 3.2.1 && < 3.3'
@@ -47,7 +47,7 @@ executable:
 tests:
   test:
     dependencies:
-      hspec: '>= 2.4.4 && < 2.5'
+      hspec: '>= 2.4.4 && < 2.6'
       semabadge: -any
     ghc-options:
       - -rtsopts
