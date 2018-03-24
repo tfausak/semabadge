@@ -1,0 +1,8 @@
+# https://github.com/ndmitchell/hlint#customizing-the-hints
+
+- arguments: [ --cmdthreads, --cross ]
+
+- extensions:
+  - default: false
+
+- group: {name: dollar, enabled: true}

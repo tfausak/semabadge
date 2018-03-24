@@ -1,0 +1,47 @@
+name: semabadge
+version: 0.0.0
+
+category: Web
+description: Semabadge generates deploy badges for Semaphore.
+extra-source-files:
+  - package.yaml
+  - README.markdown
+  - stack.yaml
+github: tfausak/semabadge
+license-file: LICENSE.markdown
+license: MIT
+maintainer: Taylor Fausak
+synopsis: Generates deploy badges for Semaphore.
+
+dependencies:
+  base: '>= 4.9.1 && < 4.10'
+ghc-options:
+  - -optP -Wno-nonportable-include-path # https://github.com/haskell/cabal/issues/4739
+  - -Weverything
+  - -Wno-implicit-prelude
+  - -Wno-safe
+  - -Wno-unsafe
+
+library:
+  source-dirs: library
+
+executable:
+  dependencies:
+    semabadge: -any
+  ghc-options:
+    - -rtsopts
+    - -threaded
+  main: Main.hs
+  source-dirs: executables
+
+tests:
+  test:
+    dependencies:
+      hspec: '>= 2.4.4 && < 2.5'
+      semabadge: -any
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -Wno-missing-import-lists
+    main: Main.hs
+    source-dirs: tests
