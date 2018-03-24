@@ -5,7 +5,7 @@ module Semabadge.Main
   ) where
 
 import qualified Control.Exception as Exception
-import qualified Data.Aeson as Aeson (eitherDecode, encode)
+import qualified Data.Aeson as Aeson (decode, encode)
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
@@ -37,16 +37,18 @@ beforeMainLoop :: IO ()
 beforeMainLoop = putStrLn "Starting server ..."
 
 logger :: Wai.Request -> Http.Status -> Maybe Integer -> IO ()
-logger request status _ =
-  putStrLn
-    (concat
-       [ requestMethod request
-       , " "
-       , fromUtf8 (Wai.rawPathInfo request)
-       , fromUtf8 (Wai.rawQueryString request)
-       , " "
-       , show (Http.statusCode status)
-       ])
+logger request status _ = putStrLn (requestLog request status)
+
+requestLog :: Wai.Request -> Http.Status -> String
+requestLog request status =
+  concat
+    [ requestMethod request
+    , " "
+    , fromUtf8 (Wai.rawPathInfo request)
+    , fromUtf8 (Wai.rawQueryString request)
+    , " "
+    , show (Http.statusCode status)
+    ]
 
 onExceptionResponse :: Exception.SomeException -> Wai.Response
 onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
@@ -63,7 +65,7 @@ application request respond = do
     case (requestMethod request, requestPath request) of
       ("GET", ["health-check"]) -> getHealthCheckHandler
       ("GET", ["projects", project, "servers", server]) ->
-        getServerHandler request project server
+        getBadgeHandler request project server
       _ -> notFoundHandler
   respond response
 
@@ -73,34 +75,51 @@ getHealthCheckHandler = pure (jsonResponse Http.ok200 [] True)
 notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
-getServerHandler :: Wai.Request -> String -> String -> IO Wai.Response
-getServerHandler request project server =
-  case lookup (toUtf8 "token") (Wai.queryString request) of
+getBadgeHandler :: Wai.Request -> String -> String -> IO Wai.Response
+getBadgeHandler request project server =
+  case requestParam "token" request of
     Nothing -> pure (jsonResponse Http.badRequest400 [] Aeson.Null)
-    Just Nothing -> pure (jsonResponse Http.badRequest400 [] Aeson.Null)
-    Just (Just rawToken) -> do
-      let token = fromUtf8 rawToken
-          url =
-            concat
-              [ "https://semaphoreci.com/api/v1/projects/"
-              , project
-              , "/servers/"
-              , server
-              , "/status?auth_token="
-              , token
-              ]
-      req <- Client.parseRequest url
-      man <- Client.newTlsManager
-      res <- Client.httpLbs req man
-      case Aeson.eitherDecode (Client.responseBody res) of
-        Left message ->
-          pure (jsonResponse Http.internalServerError500 [] message)
-        Right serverStatus ->
+    Just token -> do
+      result <- getServerStatus (Project project) (Server server) (Token token)
+      case result of
+        Nothing ->
+          pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+        Just serverStatus ->
           pure
             (Wai.responseLBS
                Http.ok200
                [(Http.hContentType, toUtf8 "image/svg+xml")]
                (resultBadge (serverStatusResult serverStatus)))
+
+getServerStatus :: Project -> Server -> Token -> IO (Maybe ServerStatus)
+getServerStatus project server token = do
+  request <- Client.parseRequest (semaphoreUrl project server token)
+  manager <- Client.newTlsManager
+  response <- Client.httpLbs request manager
+  pure (Aeson.decode (Client.responseBody response))
+
+semaphoreUrl :: Project -> Server -> Token -> String
+semaphoreUrl (Project project) (Server server) (Token token) =
+  concat
+    [ "https://semaphoreci.com/api/v1/projects/"
+    , project
+    , "/servers/"
+    , server
+    , "/status?auth_token="
+    , token
+    ]
+
+newtype Project =
+  Project String
+  deriving (Eq, Show)
+
+newtype Server =
+  Server String
+  deriving (Eq, Show)
+
+newtype Token =
+  Token String
+  deriving (Eq, Show)
 
 data Result
   = ResultFailed
@@ -193,3 +212,10 @@ requestMethod request = fromUtf8 (Wai.requestMethod request)
 
 requestPath :: Wai.Request -> [String]
 requestPath request = map Text.unpack (Wai.pathInfo request)
+
+requestParam :: String -> Wai.Request -> Maybe String
+requestParam key request =
+  case lookup (toUtf8 key) (Wai.queryString request) of
+    Nothing -> Nothing
+    Just Nothing -> Nothing
+    Just (Just value) -> Just (fromUtf8 value)
