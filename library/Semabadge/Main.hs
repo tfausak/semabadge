@@ -22,7 +22,9 @@ import qualified Semabadge.Version as Version
 import qualified Text.XML.Light as Xml
 
 defaultMain :: IO ()
-defaultMain = Warp.runSettings settings application
+defaultMain = do
+  manager <- Client.newManager Client.tlsManagerSettings
+  Warp.runSettings settings (application manager)
 
 settings :: Warp.Settings
 settings =
@@ -58,13 +60,13 @@ port = 8080
 serverName :: ByteString.ByteString
 serverName = toUtf8 ("semabadge-" ++ Version.versionString)
 
-application :: Wai.Application
-application request respond = do
+application :: Client.Manager -> Wai.Application
+application manager request respond = do
   response <-
     case (requestMethod request, requestPath request) of
       ("GET", ["health-check"]) -> getHealthCheckHandler
       ("GET", ["projects", project, "servers", server]) ->
-        getBadgeHandler request project server
+        getBadgeHandler manager request project server
       _ -> notFoundHandler
   respond response
 
@@ -74,12 +76,14 @@ getHealthCheckHandler = pure (jsonResponse Http.ok200 [] True)
 notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
-getBadgeHandler :: Wai.Request -> String -> String -> IO Wai.Response
-getBadgeHandler request project server =
+getBadgeHandler ::
+     Client.Manager -> Wai.Request -> String -> String -> IO Wai.Response
+getBadgeHandler manager request project server =
   case requestParam "token" request of
     Nothing -> pure (jsonResponse Http.badRequest400 [] Aeson.Null)
     Just token -> do
-      result <- getServerStatus (Project project) (Server server) (Token token)
+      result <-
+        getServerStatus manager (Project project) (Server server) (Token token)
       case result of
         Nothing ->
           pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
@@ -90,10 +94,10 @@ getBadgeHandler request project server =
                [(Http.hContentType, toUtf8 "image/svg+xml")]
                (badgeFor serverStatus))
 
-getServerStatus :: Project -> Server -> Token -> IO (Maybe ServerStatus)
-getServerStatus project server token = do
+getServerStatus ::
+     Client.Manager -> Project -> Server -> Token -> IO (Maybe ServerStatus)
+getServerStatus manager project server token = do
   request <- Client.parseRequest (semaphoreUrl project server token)
-  manager <- Client.newManager Client.tlsManagerSettings
   response <- Client.httpLbs request manager
   pure (Aeson.decode (Client.responseBody response))
 
