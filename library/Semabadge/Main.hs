@@ -27,7 +27,8 @@ defaultMain = do
   let perform request = Client.httpLbs request manager
   Warp.runSettings settings (application perform)
 
-type Perform = Client.Request -> IO (Client.Response LazyByteString.ByteString)
+type Perform m
+   = Client.Request -> m (Client.Response LazyByteString.ByteString)
 
 settings :: Warp.Settings
 settings =
@@ -63,7 +64,7 @@ port = 8080
 serverName :: ByteString.ByteString
 serverName = toUtf8 ("semabadge-" ++ Version.versionString)
 
-application :: Perform -> Wai.Application
+application :: Perform IO -> Wai.Application
 application perform request respond = do
   response <-
     case (requestMethod request, requestPath request) of
@@ -80,7 +81,7 @@ notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
 getBadgeHandler ::
-     Perform -> Wai.Request -> String -> String -> IO Wai.Response
+     Monad m => Perform m -> Wai.Request -> String -> String -> m Wai.Response
 getBadgeHandler perform request project server =
   case requestParam "token" request of
     Nothing -> pure (jsonResponse Http.badRequest400 [] Aeson.Null)
@@ -98,9 +99,17 @@ getBadgeHandler perform request project server =
                (badgeFor serverStatus))
 
 getServerStatus ::
-     Perform -> Project -> Server -> Token -> IO (Maybe ServerStatus)
+     Monad m
+  => Perform m
+  -> Project
+  -> Server
+  -> Token
+  -> m (Maybe ServerStatus)
 getServerStatus perform project server token = do
-  request <- Client.parseRequest (semaphoreUrl project server token)
+  request <-
+    case Client.parseRequest (semaphoreUrl project server token) of
+      Left message -> fail (show message)
+      Right request -> pure request
   response <- perform request
   pure (Aeson.decode (Client.responseBody response))
 
