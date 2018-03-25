@@ -15,6 +15,8 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified GHC.Generics as Generics
+import qualified Graphics.Badge.Barrier as Barrier
+import qualified Lens.Family as Lens
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
@@ -26,7 +28,6 @@ import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Text.Read as Read
-import qualified Text.XML.Light as Xml
 
 defaultMain :: IO ()
 defaultMain = do
@@ -295,137 +296,28 @@ instance Aeson.FromJSON Result where
 
 badgeFor :: ServerStatus -> LazyByteString.ByteString
 badgeFor serverStatus =
-  let color = badgeColor serverStatus
-      leftLabel = badgeLeftLabel serverStatus
-      rightLabel = badgeRightLabel serverStatus
-   in LazyByteString.fromStrict
-        (toUtf8
-           (Xml.ppContent
-              (xmlElem
-                 "svg"
-                 [ ("xmlns", "http://www.w3.org/2000/svg")
-                 , ("width", "98")
-                 , ("height", "20")
-                 ]
-                 [ xmlElem
-                     "linearGradient"
-                     [("id", "smooth"), ("x2", "0"), ("y2", "100%")]
-                     [ xmlElem
-                         "stop"
-                         [ ("offset", "0")
-                         , ("stop-color", "#bbb")
-                         , ("stop-opacity", ".1")
-                         ]
-                         []
-                     , xmlElem
-                         "stop"
-                         [("offset", "1"), ("stop-opacity", ".1")]
-                         []
-                     ]
-                 , xmlElem
-                     "mask"
-                     [("id", "round")]
-                     [ xmlElem
-                         "rect"
-                         [ ("width", "98")
-                         , ("height", "20")
-                         , ("rx", "3")
-                         , ("fill", "#fff")
-                         ]
-                         []
-                     ]
-                 , xmlElem
-                     "g"
-                     [("mask", "url(#round)")]
-                     [ xmlElem
-                         "rect"
-                         [("width", "48"), ("height", "20"), ("fill", "#555")]
-                         []
-                     , xmlElem
-                         "rect"
-                         [ ("x", "48")
-                         , ("width", "50")
-                         , ("height", "20")
-                         , ("fill", color)
-                         ]
-                         []
-                     , xmlElem
-                         "rect"
-                         [ ("width", "98")
-                         , ("height", "20")
-                         , ("fill", "url(#smooth)")
-                         ]
-                         []
-                     ]
-                 , xmlElem
-                     "g"
-                     [ ("fill", "#fff")
-                     , ("text-anchor", "middle")
-                     , ( "font-family"
-                       , "'DejaVu Sans', 'Verdana', 'Geneva', sans-serif")
-                     , ("font-size", "11")
-                     ]
-                     [ xmlElem
-                         "text"
-                         [ ("x", "25")
-                         , ("y", "15")
-                         , ("fill", "#010101")
-                         , ("fill-opacity", ".3")
-                         ]
-                         [xmlText leftLabel]
-                     , xmlElem
-                         "text"
-                         [("x", "25"), ("y", "14")]
-                         [xmlText leftLabel]
-                     , xmlElem
-                         "text"
-                         [ ("x", "72")
-                         , ("y", "15")
-                         , ("fill", "#010101")
-                         , ("fill-opacity", ".3")
-                         ]
-                         [xmlText rightLabel]
-                     , xmlElem
-                         "text"
-                         [("x", "72"), ("y", "14")]
-                         [xmlText rightLabel]
-                     ]
-                 ])))
+  Barrier.renderBadge
+    (Lens.set Barrier.right (badgeColor serverStatus) Barrier.flat)
+    (badgeLeftLabel serverStatus)
+    (badgeRightLabel serverStatus)
 
-xmlElem :: String -> [(String, String)] -> [Xml.Content] -> Xml.Content
-xmlElem name attributes children =
-  Xml.Elem
-    (Xml.Element
-       (xmlName name)
-       (map (uncurry xmlAttr) attributes)
-       children
-       Nothing)
-
-xmlAttr :: String -> String -> Xml.Attr
-xmlAttr key value = Xml.Attr (xmlName key) value
-
-xmlName :: String -> Xml.QName
-xmlName string = Xml.QName string Nothing Nothing
-
-xmlText :: String -> Xml.Content
-xmlText text = Xml.Text (Xml.CData Xml.CDataText text Nothing)
-
-badgeColor :: ServerStatus -> String
+badgeColor :: ServerStatus -> Barrier.Color
 badgeColor serverStatus =
   case serverStatusResult serverStatus of
-    ResultFailed -> "#e05d44"
-    ResultPassed -> "#4c1"
-    ResultPending -> "#9f9f9f"
+    ResultFailed -> Barrier.red
+    ResultPassed -> Barrier.brightgreen
+    ResultPending -> Barrier.gray
 
-badgeLeftLabel :: ServerStatus -> String
-badgeLeftLabel serverStatus = Text.unpack (serverStatusServerName serverStatus)
+badgeLeftLabel :: ServerStatus -> Text.Text
+badgeLeftLabel serverStatus = serverStatusServerName serverStatus
 
-badgeRightLabel :: ServerStatus -> String
+badgeRightLabel :: ServerStatus -> Text.Text
 badgeRightLabel serverStatus =
-  case serverStatusResult serverStatus of
-    ResultFailed -> "failed"
-    ResultPassed -> "passed"
-    ResultPending -> "pending"
+  Text.pack
+    (case serverStatusResult serverStatus of
+       ResultFailed -> "failed"
+       ResultPassed -> "passed"
+       ResultPending -> "pending")
 
 data ServerStatus = ServerStatus
   { serverStatusResult :: Result
