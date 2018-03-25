@@ -89,7 +89,7 @@ getBadgeHandler request project server =
             (Wai.responseLBS
                Http.ok200
                [(Http.hContentType, toUtf8 "image/svg+xml")]
-               (resultBadge (serverStatusResult serverStatus)))
+               (badgeFor serverStatus))
 
 getServerStatus :: Project -> Server -> Token -> IO (Maybe ServerStatus)
 getServerStatus project server token = do
@@ -138,12 +138,13 @@ instance Aeson.FromJSON Result where
            "pending" -> pure ResultPending
            _ -> mempty)
 
-resultBadge :: Result -> LazyByteString.ByteString
-resultBadge result =
-  Barrier.renderBadge
-    (Lens.set Barrier.right (resultColor result) Barrier.flat)
-    (Text.pack "deploy")
-    (Text.pack (resultLabel result))
+badgeFor :: ServerStatus -> LazyByteString.ByteString
+badgeFor serverStatus =
+  let result = serverStatusResult serverStatus
+   in Barrier.renderBadge
+        (Lens.set Barrier.right (resultColor result) Barrier.flat)
+        (serverStatusServerName serverStatus)
+        (Text.pack (resultLabel result))
 
 resultColor :: Result -> Barrier.Color
 resultColor result =
@@ -159,8 +160,9 @@ resultLabel result =
     ResultPassed -> "passed"
     ResultPending -> "pending"
 
-newtype ServerStatus = ServerStatus
+data ServerStatus = ServerStatus
   { serverStatusResult :: Result
+  , serverStatusServerName :: Text.Text
   } deriving (Eq, Generics.Generic, Show)
 
 instance Aeson.FromJSON ServerStatus where
