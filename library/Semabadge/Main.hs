@@ -11,6 +11,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Maybe as Maybe
+import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified GHC.Generics as Generics
@@ -32,7 +33,9 @@ defaultMain = do
   config <- getConfig
   manager <- Client.newManager Client.tlsManagerSettings
   let perform request = Client.httpLbs request manager
-  Warp.runSettings (settings (configPort config)) (application perform)
+  Warp.runSettings
+    (settings (configHost config) (configPort config))
+    (application perform)
 
 getConfig :: IO Config
 getConfig = do
@@ -52,13 +55,14 @@ getConfig = do
       pure config
 
 data Config = Config
-  { configPort :: Warp.Port
+  { configHost :: Warp.HostPreference
+  , configPort :: Warp.Port
   , configShowHelp :: Bool
   , configShowVersion :: Bool
   } deriving (Eq, Show)
 
 options :: [Option]
-options = [helpOption, portOption, versionOption]
+options = [helpOption, hostOption, portOption, versionOption]
 
 type Option = Console.OptDescr (Config -> Either String Config)
 
@@ -70,10 +74,21 @@ helpOption =
     (Console.NoArg (\config -> Right config {configShowHelp = True}))
     "show the help and exit"
 
+hostOption :: Option
+hostOption =
+  Console.Option
+    []
+    ["host"]
+    (Console.ReqArg
+       (\rawHost config ->
+          Right config {configHost = String.fromString rawHost})
+       "HOST")
+    "host to bind"
+
 portOption :: Option
 portOption =
   Console.Option
-    ['p']
+    []
     ["port"]
     (Console.ReqArg
        (\rawPort config ->
@@ -88,7 +103,7 @@ portOption =
 versionOption :: Option
 versionOption =
   Console.Option
-    ['v']
+    []
     ["version"]
     (Console.NoArg (\config -> Right config {configShowVersion = True}))
     "show the version number and exit"
@@ -123,7 +138,12 @@ buildConfig updates =
 
 defaultConfig :: Config
 defaultConfig =
-  Config {configPort = 8080, configShowHelp = False, configShowVersion = False}
+  Config
+    { configHost = String.fromString "127.0.0.1"
+    , configPort = 8080
+    , configShowHelp = False
+    , configShowVersion = False
+    }
 
 printHelpAndExit :: IO ()
 printHelpAndExit = do
@@ -142,17 +162,18 @@ printVersionAndExit = do
 type Perform m
    = Client.Request -> m (Client.Response LazyByteString.ByteString)
 
-settings :: Warp.Port -> Warp.Settings
-settings port =
-  Warp.setBeforeMainLoop (beforeMainLoop port) .
+settings :: Warp.HostPreference -> Warp.Port -> Warp.Settings
+settings host port =
+  Warp.setBeforeMainLoop (beforeMainLoop host port) .
+  Warp.setHost host .
   Warp.setLogger logger .
   Warp.setOnExceptionResponse onExceptionResponse .
   Warp.setPort port . Warp.setServerName serverName $
   Warp.defaultSettings
 
-beforeMainLoop :: Warp.Port -> IO ()
-beforeMainLoop port =
-  putStrLn (concat ["Listening on port ", show port, " ..."])
+beforeMainLoop :: Warp.HostPreference -> Warp.Port -> IO ()
+beforeMainLoop host port =
+  putStrLn (unwords ["Listening on", show host, "port", show port, "..."])
 
 logger :: Wai.Request -> Http.Status -> Maybe Integer -> IO ()
 logger request status _ = putStrLn (requestLog request status)
