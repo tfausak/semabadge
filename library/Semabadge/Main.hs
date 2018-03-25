@@ -5,6 +5,7 @@ module Semabadge.Main
   ) where
 
 import qualified Control.Exception as Exception
+import qualified Control.Monad as Monad
 import qualified Data.Aeson as Aeson (decode, encode)
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
@@ -19,27 +20,139 @@ import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Version as Version
+import qualified System.Console.GetOpt as Console
+import qualified System.Environment as Environment
+import qualified System.Exit as Exit
+import qualified System.IO as IO
+import qualified Text.Read as Read
 import qualified Text.XML.Light as Xml
 
 defaultMain :: IO ()
 defaultMain = do
+  config <- getConfig
   manager <- Client.newManager Client.tlsManagerSettings
   let perform request = Client.httpLbs request manager
-  Warp.runSettings settings (application perform)
+  Warp.runSettings (settings (configPort config)) (application perform)
+
+getConfig :: IO Config
+getConfig = do
+  args <- Environment.getArgs
+  let (updates, unexpecteds, unknowns, errors) =
+        Console.getOpt' Console.Permute options args
+  Monad.unless (null errors) (printErrorsAndExit errors)
+  printUnknowns unknowns
+  printUnexpecteds unexpecteds
+  case buildConfig updates of
+    Left problem -> do
+      IO.hPutStrLn IO.stderr ("ERROR: invalid config: " ++ problem)
+      Exit.exitFailure
+    Right config -> do
+      Monad.when (configShowHelp config) printHelpAndExit
+      Monad.when (configShowVersion config) printVersionAndExit
+      pure config
+
+data Config = Config
+  { configPort :: Warp.Port
+  , configShowHelp :: Bool
+  , configShowVersion :: Bool
+  } deriving (Eq, Show)
+
+options :: [Option]
+options = [helpOption, portOption, versionOption]
+
+type Option = Console.OptDescr (Config -> Either String Config)
+
+helpOption :: Option
+helpOption =
+  Console.Option
+    ['h', '?']
+    ["help"]
+    (Console.NoArg (\config -> Right config {configShowHelp = True}))
+    "show the help and exit"
+
+portOption :: Option
+portOption =
+  Console.Option
+    ['p']
+    ["port"]
+    (Console.ReqArg
+       (\rawPort config ->
+          case Read.readEither rawPort of
+            Left message ->
+              Left
+                (concat ["invalid port: ", show rawPort, " (", message, ")"])
+            Right port -> Right config {configPort = port})
+       "PORT")
+    "port number to bind"
+
+versionOption :: Option
+versionOption =
+  Console.Option
+    ['v']
+    ["version"]
+    (Console.NoArg (\config -> Right config {configShowVersion = True}))
+    "show the version number and exit"
+
+printErrorsAndExit :: [String] -> IO ()
+printErrorsAndExit errors = do
+  mapM_ printError errors
+  Exit.exitFailure
+
+printError :: String -> IO ()
+printError error_ = IO.hPutStr IO.stderr ("ERROR: " ++ error_)
+
+printUnknowns :: [String] -> IO ()
+printUnknowns unknowns = mapM_ printUnknown unknowns
+
+printUnknown :: String -> IO ()
+printUnknown unknown =
+  IO.hPutStrLn IO.stderr (concat ["WARNING: unknown option `", unknown, "'"])
+
+printUnexpecteds :: [String] -> IO ()
+printUnexpecteds unexpecteds = mapM_ printUnexpected unexpecteds
+
+printUnexpected :: String -> IO ()
+printUnexpected unexpected =
+  IO.hPutStrLn
+    IO.stderr
+    (concat ["WARNING: unexpected argument `", unexpected, "'"])
+
+buildConfig :: [Config -> Either String Config] -> Either String Config
+buildConfig updates =
+  Monad.foldM (\config update -> update config) defaultConfig updates
+
+defaultConfig :: Config
+defaultConfig =
+  Config {configPort = 8080, configShowHelp = False, configShowVersion = False}
+
+printHelpAndExit :: IO ()
+printHelpAndExit = do
+  IO.hPutStr
+    IO.stderr
+    (Console.usageInfo
+       (unwords ["semabadge", "version", Version.versionString])
+       options)
+  Exit.exitFailure
+
+printVersionAndExit :: IO ()
+printVersionAndExit = do
+  IO.hPutStrLn IO.stderr Version.versionString
+  Exit.exitFailure
 
 type Perform m
    = Client.Request -> m (Client.Response LazyByteString.ByteString)
 
-settings :: Warp.Settings
-settings =
-  Warp.setBeforeMainLoop beforeMainLoop .
+settings :: Warp.Port -> Warp.Settings
+settings port =
+  Warp.setBeforeMainLoop (beforeMainLoop port) .
   Warp.setLogger logger .
   Warp.setOnExceptionResponse onExceptionResponse .
   Warp.setPort port . Warp.setServerName serverName $
   Warp.defaultSettings
 
-beforeMainLoop :: IO ()
-beforeMainLoop = putStrLn "Starting server ..."
+beforeMainLoop :: Warp.Port -> IO ()
+beforeMainLoop port =
+  putStrLn (concat ["Listening on port ", show port, " ..."])
 
 logger :: Wai.Request -> Http.Status -> Maybe Integer -> IO ()
 logger request status _ = putStrLn (requestLog request status)
@@ -57,9 +170,6 @@ requestLog request status =
 
 onExceptionResponse :: Exception.SomeException -> Wai.Response
 onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
-
-port :: Warp.Port
-port = 8080
 
 serverName :: ByteString.ByteString
 serverName = toUtf8 ("semabadge-" ++ Version.versionString)
