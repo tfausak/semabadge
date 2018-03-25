@@ -223,12 +223,17 @@ getBadgeHandler perform request project server =
       case result of
         Nothing ->
           pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
-        Just serverStatus ->
+        Just serverStatus -> do
+          let maybeLabel =
+                case lookup (toUtf8 "label") (Wai.queryString request) of
+                  Nothing -> Nothing
+                  Just Nothing -> Nothing
+                  Just (Just label) -> Just (fromUtf8 label)
           pure
             (Wai.responseLBS
                Http.ok200
                [(Http.hContentType, toUtf8 "image/svg+xml")]
-               (badgeFor serverStatus))
+               (badgeFor serverStatus maybeLabel))
 
 getServerStatus ::
      Monad m
@@ -294,11 +299,11 @@ instance Aeson.FromJSON Result where
            "pending" -> pure ResultPending
            _ -> mempty)
 
-badgeFor :: ServerStatus -> LazyByteString.ByteString
-badgeFor serverStatus =
+badgeFor :: ServerStatus -> Maybe String -> LazyByteString.ByteString
+badgeFor serverStatus maybeLabel =
   Barrier.renderBadge
     (Lens.set Barrier.right (badgeColor serverStatus) Barrier.flat)
-    (badgeLeftLabel serverStatus)
+    (maybe (badgeLeftLabel serverStatus) Text.pack maybeLabel)
     (badgeRightLabel serverStatus)
 
 badgeColor :: ServerStatus -> Barrier.Color
