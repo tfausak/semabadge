@@ -260,36 +260,27 @@ getServerStatus perform project server token = do
   pure (Aeson.decode (Client.responseBody response))
 
 semaphoreUrl :: Project -> Server -> Token -> String
-semaphoreUrl project server token =
+semaphoreUrl (Project project) (Server server) (Token token) =
   concat
     [ "https://semaphoreci.com/api/v1/projects/"
-    , unwrapProject project
+    , project
     , "/servers/"
-    , unwrapServer server
+    , server
     , "/status?auth_token="
-    , unwrapToken token
+    , token
     ]
 
 newtype Project =
   Project String
   deriving (Eq, Show)
 
-unwrapProject :: Project -> String
-unwrapProject (Project project) = project
-
 newtype Server =
   Server String
   deriving (Eq, Show)
 
-unwrapServer :: Server -> String
-unwrapServer (Server server) = server
-
 newtype Token =
   Token String
   deriving (Eq, Show)
-
-unwrapToken :: Token -> String
-unwrapToken (Token token) = token
 
 data Result
   = ResultFailed
