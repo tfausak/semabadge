@@ -93,7 +93,7 @@ getBadgeHandler request project server =
 getServerStatus :: Project -> Server -> Token -> IO (Maybe ServerStatus)
 getServerStatus project server token = do
   request <- Client.parseRequest (semaphoreUrl project server token)
-  manager <- Client.newTlsManager
+  manager <- Client.newManager Client.tlsManagerSettings
   response <- Client.httpLbs request manager
   pure (Aeson.decode (Client.responseBody response))
 
