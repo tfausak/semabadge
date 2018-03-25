@@ -36,7 +36,7 @@ defaultMain = do
   let perform request = Client.httpLbs request manager
   Warp.runSettings
     (settings (configHost config) (configPort config))
-    (application perform)
+    (application (configToken config) perform)
 
 getConfig :: IO Config
 getConfig = do
@@ -60,10 +60,11 @@ data Config = Config
   , configPort :: Warp.Port
   , configShowHelp :: Bool
   , configShowVersion :: Bool
+  , configToken :: Token
   } deriving (Eq, Show)
 
 options :: [Option]
-options = [helpOption, hostOption, portOption, versionOption]
+options = [helpOption, hostOption, portOption, tokenOption, versionOption]
 
 type Option = Console.OptDescr (Config -> Either String Config)
 
@@ -100,6 +101,16 @@ portOption =
             Right port -> Right config {configPort = port})
        "PORT")
     "port number to bind"
+
+tokenOption :: Option
+tokenOption =
+  Console.Option
+    []
+    ["token"]
+    (Console.ReqArg
+       (\token config -> Right config {configToken = Token token})
+       "TOKEN")
+    "Semaphore authentication token"
 
 versionOption :: Option
 versionOption =
@@ -144,6 +155,7 @@ defaultConfig =
     , configPort = 8080
     , configShowHelp = False
     , configShowVersion = False
+    , configToken = Token "no-token-set"
     }
 
 printHelpAndExit :: IO ()
@@ -196,13 +208,13 @@ onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
 serverName :: ByteString.ByteString
 serverName = toUtf8 ("semabadge-" ++ Version.versionString)
 
-application :: Perform IO -> Wai.Application
-application perform request respond = do
+application :: Token -> Perform IO -> Wai.Application
+application token perform request respond = do
   response <-
     case (requestMethod request, requestPath request) of
       ("GET", ["health-check"]) -> getHealthCheckHandler
       ("GET", ["projects", project, "servers", server]) ->
-        getBadgeHandler perform request project server
+        getBadgeHandler token perform request project server
       _ -> notFoundHandler
   respond response
 
@@ -213,27 +225,24 @@ notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
 getBadgeHandler ::
-     Monad m => Perform m -> Wai.Request -> String -> String -> m Wai.Response
-getBadgeHandler perform request project server =
-  case requestParam "token" request of
-    Nothing -> pure (jsonResponse Http.badRequest400 [] Aeson.Null)
-    Just token -> do
-      result <-
-        getServerStatus perform (Project project) (Server server) (Token token)
-      case result of
-        Nothing ->
-          pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
-        Just serverStatus -> do
-          let maybeLabel =
-                case lookup (toUtf8 "label") (Wai.queryString request) of
-                  Nothing -> Nothing
-                  Just Nothing -> Nothing
-                  Just (Just label) -> Just (fromUtf8 label)
-          pure
-            (Wai.responseLBS
-               Http.ok200
-               [(Http.hContentType, toUtf8 "image/svg+xml")]
-               (badgeFor serverStatus maybeLabel))
+     Monad m
+  => Token
+  -> Perform m
+  -> Wai.Request
+  -> String
+  -> String
+  -> m Wai.Response
+getBadgeHandler token perform request project server = do
+  result <- getServerStatus perform (Project project) (Server server) token
+  case result of
+    Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Just serverStatus -> do
+      let maybeLabel = requestParam "label" request
+      pure
+        (Wai.responseLBS
+           Http.ok200
+           [(Http.hContentType, toUtf8 "image/svg+xml")]
+           (badgeFor serverStatus maybeLabel))
 
 getServerStatus ::
      Monad m
