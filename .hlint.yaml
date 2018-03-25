@@ -7,4 +7,6 @@
   - name:
       - DeriveGeneric
 
-- group: {name: dollar, enabled: true}
+- group: { name: dollar, enabled: true }
+
+- ignore: { name: Eta reduce }

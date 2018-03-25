@@ -13,14 +13,13 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified GHC.Generics as Generics
-import qualified Graphics.Badge.Barrier as Barrier
-import qualified Lens.Family as Lens
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Version as Version
+import qualified Text.XML.Light as Xml
 
 defaultMain :: IO ()
 defaultMain = Warp.runSettings settings application
@@ -140,22 +139,134 @@ instance Aeson.FromJSON Result where
 
 badgeFor :: ServerStatus -> LazyByteString.ByteString
 badgeFor serverStatus =
-  let result = serverStatusResult serverStatus
-   in Barrier.renderBadge
-        (Lens.set Barrier.right (resultColor result) Barrier.flat)
-        (serverStatusServerName serverStatus)
-        (Text.pack (resultLabel result))
+  let color = badgeColor serverStatus
+      leftLabel = badgeLeftLabel serverStatus
+      rightLabel = badgeRightLabel serverStatus
+   in LazyByteString.fromStrict
+        (toUtf8
+           (Xml.ppContent
+              (xmlElem
+                 "svg"
+                 [ ("xmlns", "http://www.w3.org/2000/svg")
+                 , ("width", "98")
+                 , ("height", "20")
+                 ]
+                 [ xmlElem
+                     "linearGradient"
+                     [("id", "smooth"), ("x2", "0"), ("y2", "100%")]
+                     [ xmlElem
+                         "stop"
+                         [ ("offset", "0")
+                         , ("stop-color", "#bbb")
+                         , ("stop-opacity", ".1")
+                         ]
+                         []
+                     , xmlElem
+                         "stop"
+                         [("offset", "1"), ("stop-opacity", ".1")]
+                         []
+                     ]
+                 , xmlElem
+                     "mask"
+                     [("id", "round")]
+                     [ xmlElem
+                         "rect"
+                         [ ("width", "98")
+                         , ("height", "20")
+                         , ("rx", "3")
+                         , ("fill", "#fff")
+                         ]
+                         []
+                     ]
+                 , xmlElem
+                     "g"
+                     [("mask", "url(#round)")]
+                     [ xmlElem
+                         "rect"
+                         [("width", "48"), ("height", "20"), ("fill", "#555")]
+                         []
+                     , xmlElem
+                         "rect"
+                         [ ("x", "48")
+                         , ("width", "50")
+                         , ("height", "20")
+                         , ("fill", color)
+                         ]
+                         []
+                     , xmlElem
+                         "rect"
+                         [ ("width", "98")
+                         , ("height", "20")
+                         , ("fill", "url(#smooth)")
+                         ]
+                         []
+                     ]
+                 , xmlElem
+                     "g"
+                     [ ("fill", "#fff")
+                     , ("text-anchor", "middle")
+                     , ( "font-family"
+                       , "'DejaVu Sans', 'Verdana', 'Geneva', sans-serif")
+                     , ("font-size", "11")
+                     ]
+                     [ xmlElem
+                         "text"
+                         [ ("x", "25")
+                         , ("y", "15")
+                         , ("fill", "#010101")
+                         , ("fill-opacity", ".3")
+                         ]
+                         [xmlText leftLabel]
+                     , xmlElem
+                         "text"
+                         [("x", "25"), ("y", "14")]
+                         [xmlText leftLabel]
+                     , xmlElem
+                         "text"
+                         [ ("x", "72")
+                         , ("y", "15")
+                         , ("fill", "#010101")
+                         , ("fill-opacity", ".3")
+                         ]
+                         [xmlText rightLabel]
+                     , xmlElem
+                         "text"
+                         [("x", "72"), ("y", "14")]
+                         [xmlText rightLabel]
+                     ]
+                 ])))
 
-resultColor :: Result -> Barrier.Color
-resultColor result =
-  case result of
-    ResultFailed -> Barrier.red
-    ResultPassed -> Barrier.green
-    ResultPending -> Barrier.gray
+xmlElem :: String -> [(String, String)] -> [Xml.Content] -> Xml.Content
+xmlElem name attributes children =
+  Xml.Elem
+    (Xml.Element
+       (xmlName name)
+       (map (uncurry xmlAttr) attributes)
+       children
+       Nothing)
 
-resultLabel :: Result -> String
-resultLabel result =
-  case result of
+xmlAttr :: String -> String -> Xml.Attr
+xmlAttr key value = Xml.Attr (xmlName key) value
+
+xmlName :: String -> Xml.QName
+xmlName string = Xml.QName string Nothing Nothing
+
+xmlText :: String -> Xml.Content
+xmlText text = Xml.Text (Xml.CData Xml.CDataText text Nothing)
+
+badgeColor :: ServerStatus -> String
+badgeColor serverStatus =
+  case serverStatusResult serverStatus of
+    ResultFailed -> "#e05d44"
+    ResultPassed -> "#4c1"
+    ResultPending -> "#9f9f9f"
+
+badgeLeftLabel :: ServerStatus -> String
+badgeLeftLabel serverStatus = Text.unpack (serverStatusServerName serverStatus)
+
+badgeRightLabel :: ServerStatus -> String
+badgeRightLabel serverStatus =
+  case serverStatusResult serverStatus of
     ResultFailed -> "failed"
     ResultPassed -> "passed"
     ResultPending -> "pending"
