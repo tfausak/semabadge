@@ -243,11 +243,7 @@ getServerBadgeHandler token perform request project server = do
     Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Just serverStatus -> do
       let maybeLabel = requestParam "label" request
-      pure
-        (Wai.responseLBS
-           Http.ok200
-           [(Http.hContentType, toUtf8 "image/svg+xml")]
-           (badgeFor serverStatus maybeLabel))
+      pure (svgResponse Http.ok200 [] (badgeForServer serverStatus maybeLabel))
 
 getServerStatus ::
      Monad m
@@ -304,27 +300,27 @@ instance Aeson.FromJSON Result where
            "pending" -> pure ResultPending
            _ -> mempty)
 
-badgeFor :: ServerStatus -> Maybe String -> LazyByteString.ByteString
-badgeFor serverStatus maybeLabel =
+badgeForServer :: ServerStatus -> Maybe String -> LazyByteString.ByteString
+badgeForServer serverStatus maybeLabel =
   Barrier.renderBadge
-    (Lens.set Barrier.right (badgeColor serverStatus) Barrier.flat)
-    (maybe (badgeLeftLabel serverStatus) Text.pack maybeLabel)
-    (badgeRightLabel serverStatus)
+    (Lens.set
+       Barrier.right
+       (badgeColor (serverStatusResult serverStatus))
+       Barrier.flat)
+    (maybe (serverStatusServerName serverStatus) Text.pack maybeLabel)
+    (badgeRightLabel (serverStatusResult serverStatus))
 
-badgeColor :: ServerStatus -> Barrier.Color
-badgeColor serverStatus =
-  case serverStatusResult serverStatus of
+badgeColor :: Result -> Barrier.Color
+badgeColor result =
+  case result of
     ResultFailed -> Barrier.red
     ResultPassed -> Barrier.brightgreen
     ResultPending -> Barrier.gray
 
-badgeLeftLabel :: ServerStatus -> Text.Text
-badgeLeftLabel serverStatus = serverStatusServerName serverStatus
-
-badgeRightLabel :: ServerStatus -> Text.Text
-badgeRightLabel serverStatus =
+badgeRightLabel :: Result -> Text.Text
+badgeRightLabel result =
   Text.pack
-    (case serverStatusResult serverStatus of
+    (case result of
        ResultFailed -> "failed"
        ResultPassed -> "passed"
        ResultPending -> "pending")
@@ -372,11 +368,22 @@ jsonResponse ::
   -> Http.ResponseHeaders
   -> json
   -> Wai.Response
-jsonResponse status headers body =
+jsonResponse status headers json =
   Wai.responseLBS
     status
     ((Http.hContentType, toUtf8 "application/json") : headers)
-    (Aeson.encode body)
+    (Aeson.encode json)
+
+svgResponse ::
+     Http.Status
+  -> Http.ResponseHeaders
+  -> LazyByteString.ByteString
+  -> Wai.Response
+svgResponse status headers svg =
+  Wai.responseLBS
+    status
+    ((Http.hContentType, toUtf8 "image/svg+xml") : headers)
+    svg
 
 requestMethod :: Wai.Request -> String
 requestMethod request = fromUtf8 (Wai.requestMethod request)
