@@ -214,7 +214,12 @@ application token perform request respond = do
     case (requestMethod request, requestPath request) of
       ("GET", ["health-check"]) -> getHealthCheckHandler
       ("GET", ["projects", project, "servers", server]) ->
-        getBadgeHandler token perform request project server
+        getServerBadgeHandler
+          token
+          perform
+          request
+          (Project project)
+          (Server server)
       _ -> notFoundHandler
   respond response
 
@@ -224,16 +229,16 @@ getHealthCheckHandler = pure (jsonResponse Http.ok200 [] True)
 notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
-getBadgeHandler ::
+getServerBadgeHandler ::
      Monad m
   => Token
   -> Perform m
   -> Wai.Request
-  -> String
-  -> String
+  -> Project
+  -> Server
   -> m Wai.Response
-getBadgeHandler token perform request project server = do
-  result <- getServerStatus perform (Project project) (Server server) token
+getServerBadgeHandler token perform request project server = do
+  result <- getServerStatus perform project server token
   case result of
     Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Just serverStatus -> do
