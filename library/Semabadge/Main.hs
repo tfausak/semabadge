@@ -252,24 +252,18 @@ getServerStatus ::
   -> Server
   -> Token
   -> m (Maybe ServerStatus)
-getServerStatus perform project server token = do
+getServerStatus perform (Project project) (Server server) token = do
+  let path = concat ["/projects/", project, "/servers/", server, "/status"]
   request <-
-    case Client.parseRequest (semaphoreUrl project server token) of
+    case Client.parseRequest (semaphoreUrl token path) of
       Left message -> fail (show message)
       Right request -> pure request
   response <- perform request
   pure (Aeson.decode (Client.responseBody response))
 
-semaphoreUrl :: Project -> Server -> Token -> String
-semaphoreUrl (Project project) (Server server) (Token token) =
-  concat
-    [ "https://semaphoreci.com/api/v1/projects/"
-    , project
-    , "/servers/"
-    , server
-    , "/status?auth_token="
-    , token
-    ]
+semaphoreUrl :: Token -> String -> String
+semaphoreUrl (Token token) path =
+  concat ["https://semaphoreci.com/api/v1", path, "?auth_token=", token]
 
 newtype Project =
   Project String
