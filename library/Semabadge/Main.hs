@@ -213,6 +213,13 @@ application token perform request respond = do
   response <-
     case (requestMethod request, requestPath request) of
       ("GET", ["health-check"]) -> getHealthCheckHandler
+      ("GET", ["projects", project, "branches", branch]) ->
+        getBranchBadgeHandler
+          token
+          perform
+          request
+          (Project project)
+          (Branch branch)
       ("GET", ["projects", project, "servers", server]) ->
         getServerBadgeHandler
           token
@@ -229,6 +236,22 @@ getHealthCheckHandler = pure (jsonResponse Http.ok200 [] True)
 notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
+getBranchBadgeHandler ::
+     Monad io
+  => Token
+  -> Perform io
+  -> Wai.Request
+  -> Project
+  -> Branch
+  -> io Wai.Response
+getBranchBadgeHandler token perform request project branch = do
+  result <- getBranchStatus perform project branch token
+  case result of
+    Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Just branchStatus -> do
+      let maybeLabel = requestParam "label" request
+      pure (svgResponse Http.ok200 [] (badgeForBranch branchStatus maybeLabel))
+
 getServerBadgeHandler ::
      Monad io
   => Token
@@ -244,6 +267,19 @@ getServerBadgeHandler token perform request project server = do
     Just serverStatus -> do
       let maybeLabel = requestParam "label" request
       pure (svgResponse Http.ok200 [] (badgeForServer serverStatus maybeLabel))
+
+getBranchStatus ::
+     Monad io
+  => Perform io
+  -> Project
+  -> Branch
+  -> Token
+  -> io (Maybe BranchStatus)
+getBranchStatus perform (Project project) (Branch branch) token =
+  getSemaphore
+    perform
+    token
+    (concat ["/projects/", project, "/", branch, "/status"])
 
 getServerStatus ::
      Monad io
@@ -284,6 +320,10 @@ newtype Server =
   Server String
   deriving (Eq, Show)
 
+newtype Branch =
+  Branch String
+  deriving (Eq, Show)
+
 newtype Token =
   Token String
   deriving (Eq, Show)
@@ -315,6 +355,16 @@ badgeForServer serverStatus maybeLabel =
     (maybe (serverStatusServerName serverStatus) Text.pack maybeLabel)
     (badgeRightLabel (serverStatusResult serverStatus))
 
+badgeForBranch :: BranchStatus -> Maybe String -> LazyByteString.ByteString
+badgeForBranch branchStatus maybeLabel =
+  Barrier.renderBadge
+    (Lens.set
+       Barrier.right
+       (badgeColor (branchStatusResult branchStatus))
+       Barrier.flat)
+    (maybe (branchStatusBranchName branchStatus) Text.pack maybeLabel)
+    (badgeRightLabel (branchStatusResult branchStatus))
+
 badgeColor :: Result -> Barrier.Color
 badgeColor result =
   case result of
@@ -337,6 +387,14 @@ data ServerStatus = ServerStatus
 
 instance Aeson.FromJSON ServerStatus where
   parseJSON = Aeson.genericParseJSON (optionsFor "serverStatus")
+
+data BranchStatus = BranchStatus
+  { branchStatusResult :: Result
+  , branchStatusBranchName :: Text.Text
+  } deriving (Eq, Generics.Generic, Show)
+
+instance Aeson.FromJSON BranchStatus where
+  parseJSON = Aeson.genericParseJSON (optionsFor "branchStatus")
 
 optionsFor :: String -> Aeson.Options
 optionsFor prefix =
