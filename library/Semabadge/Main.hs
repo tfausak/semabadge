@@ -172,8 +172,8 @@ printVersionAndExit = do
   IO.hPutStrLn IO.stderr Version.versionString
   Exit.exitFailure
 
-type Perform m
-   = Client.Request -> m (Client.Response LazyByteString.ByteString)
+type Perform io
+   = Client.Request -> io (Client.Response LazyByteString.ByteString)
 
 settings :: Warp.HostPreference -> Warp.Port -> Warp.Settings
 settings host port =
@@ -230,13 +230,13 @@ notFoundHandler :: Applicative io => io Wai.Response
 notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
 getServerBadgeHandler ::
-     Monad m
+     Monad io
   => Token
-  -> Perform m
+  -> Perform io
   -> Wai.Request
   -> Project
   -> Server
-  -> m Wai.Response
+  -> io Wai.Response
 getServerBadgeHandler token perform request project server = do
   result <- getServerStatus perform project server token
   case result of
@@ -246,14 +246,25 @@ getServerBadgeHandler token perform request project server = do
       pure (svgResponse Http.ok200 [] (badgeForServer serverStatus maybeLabel))
 
 getServerStatus ::
-     Monad m
-  => Perform m
+     Monad io
+  => Perform io
   -> Project
   -> Server
   -> Token
-  -> m (Maybe ServerStatus)
-getServerStatus perform (Project project) (Server server) token = do
-  let path = concat ["/projects/", project, "/servers/", server, "/status"]
+  -> io (Maybe ServerStatus)
+getServerStatus perform (Project project) (Server server) token =
+  getSemaphore
+    perform
+    token
+    (concat ["/projects/", project, "/servers/", server, "/status"])
+
+getSemaphore ::
+     (Aeson.FromJSON json, Monad io)
+  => Perform io
+  -> Token
+  -> String
+  -> io (Maybe json)
+getSemaphore perform token path = do
   request <-
     case Client.parseRequest (semaphoreUrl token path) of
       Left message -> fail (show message)
@@ -325,12 +336,12 @@ data ServerStatus = ServerStatus
   } deriving (Eq, Generics.Generic, Show)
 
 instance Aeson.FromJSON ServerStatus where
-  parseJSON =
-    Aeson.genericParseJSON
-      Aeson.defaultOptions
-        { Aeson.fieldLabelModifier =
-            Aeson.camelTo2 '_' . unsafeDropPrefix "serverStatus"
-        }
+  parseJSON = Aeson.genericParseJSON (optionsFor "serverStatus")
+
+optionsFor :: String -> Aeson.Options
+optionsFor prefix =
+  Aeson.defaultOptions
+    {Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . unsafeDropPrefix prefix}
 
 unsafeDropPrefix :: (Eq a, Show a) => [a] -> [a] -> [a]
 unsafeDropPrefix prefix list =
