@@ -73,6 +73,20 @@ main =
         it "fails to parse an invalid result" $ do
           parseResult "null" `shouldBe`
             Left "Error in $: expected Result, encountered Null"
+      describe "ServerStatus" $ do
+        let parseServerStatus =
+              parseJson :: String -> Either String Semabadge.ServerStatus
+        it "parses a server status" $ do
+          parseServerStatus
+            "{ \"result\": \"passed\", \"server_name\": \"production\" }" `shouldBe`
+            Right
+              Semabadge.ServerStatus
+                { Semabadge.serverStatusResult = Semabadge.ResultPassed
+                , Semabadge.serverStatusServerName = Text.pack "production"
+                }
+        it "fails to parse an invalid server status" $ do
+          parseServerStatus "null" `shouldBe`
+            Left "Error in $: expected record (:*:), encountered Null"
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Semabadge.Main
   ( defaultMain
   ) where
@@ -12,17 +10,16 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.String as String
 import qualified Data.Text as Text
-import qualified GHC.Generics as Generics
 import qualified Graphics.Badge.Barrier as Barrier
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
+import qualified Semabadge.Type.ServerStatus as ServerStatus
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
@@ -295,7 +292,7 @@ getServerStatus ::
   -> Project
   -> Server
   -> Token
-  -> io (Maybe ServerStatus)
+  -> io (Maybe ServerStatus.ServerStatus)
 getServerStatus perform project server token =
   getSemaphore
     perform
@@ -355,15 +352,19 @@ newtype Token =
 unwrapToken :: Token -> String
 unwrapToken (Token token) = token
 
-badgeForServer :: ServerStatus -> Maybe String -> LazyByteString.ByteString
+badgeForServer ::
+     ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString
 badgeForServer serverStatus maybeLabel =
   Barrier.renderBadge
     (Lens.set
        Barrier.right
-       (badgeColor (serverStatusResult serverStatus))
+       (badgeColor (ServerStatus.serverStatusResult serverStatus))
        Barrier.flat)
-    (maybe (serverStatusServerName serverStatus) Text.pack maybeLabel)
-    (badgeRightLabel (serverStatusResult serverStatus))
+    (maybe
+       (ServerStatus.serverStatusServerName serverStatus)
+       Text.pack
+       maybeLabel)
+    (badgeRightLabel (ServerStatus.serverStatusResult serverStatus))
 
 badgeForBranch ::
      BranchStatus.BranchStatus -> Maybe String -> LazyByteString.ByteString
@@ -393,14 +394,6 @@ badgeRightLabel result =
        Result.ResultFailed -> "failed"
        Result.ResultPassed -> "passed"
        Result.ResultPending -> "pending")
-
-data ServerStatus = ServerStatus
-  { serverStatusResult :: Result.Result
-  , serverStatusServerName :: Text.Text
-  } deriving (Eq, Generics.Generic, Show)
-
-instance Aeson.FromJSON ServerStatus where
-  parseJSON = Aeson.genericParseJSON (Json.optionsFor "serverStatus")
 
 jsonResponse ::
      Aeson.ToJSON json
