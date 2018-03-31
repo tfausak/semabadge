@@ -1,6 +1,7 @@
 module Semabadge
   ( Main.defaultMain
   , Application.application
+  , Server.settings
   , Badge.badgeColor
   , Badge.badgeForBranch
   , Badge.badgeForServer
@@ -52,6 +53,7 @@ import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List
 import qualified Semabadge.Main as Main
 import qualified Semabadge.Semaphore as Semaphore
+import qualified Semabadge.Server as Server
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Config as Config

@@ -169,6 +169,7 @@ main =
         it "builds a URL with a token" $ do
           Semabadge.semaphoreUrl (Just (Semabadge.makeToken "token")) "/path" `shouldBe`
             "https://semaphoreci.com/api/v1/path?auth_token=token"
+    describe "Server" . describe "settings" $ it "needs tests" pending
     describe "Type" $ do
       let parseJson :: Aeson.FromJSON json => String -> Either String json
           parseJson string =
