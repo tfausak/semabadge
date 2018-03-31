@@ -23,15 +23,29 @@ import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
+import qualified System.Environment as Environment
+import qualified System.Exit as Exit
+import qualified System.IO as IO
 
 defaultMain :: IO ()
 defaultMain = do
-  config <- Command.getConfig
+  config <- getConfig
   manager <- Client.newManager Client.tlsManagerSettings
   let perform request = Client.httpLbs request manager
   Warp.runSettings
     (settings (Config.configHost config) (Config.configPort config))
     (application (Config.configToken config) perform)
+
+getConfig :: IO Config.Config
+getConfig = do
+  args <- Environment.getArgs
+  case Command.getConfigWith args of
+    Left problem -> do
+      IO.hPutStrLn IO.stderr problem
+      Exit.exitFailure
+    Right (config, warnings) -> do
+      mapM_ (IO.hPutStrLn IO.stderr) warnings
+      pure config
 
 settings :: Warp.HostPreference -> Warp.Port -> Warp.Settings
 settings host port =

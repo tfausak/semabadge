@@ -1,5 +1,5 @@
 module Semabadge.Command
-  ( getConfig
+  ( getConfigWith
   ) where
 
 import qualified Control.Monad as Monad
@@ -8,27 +8,37 @@ import qualified Semabadge.Type.Config as Config
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
-import qualified System.Environment as Environment
-import qualified System.Exit as Exit
-import qualified System.IO as IO
 import qualified Text.Read as Read
 
-getConfig :: IO Config.Config
-getConfig = do
-  args <- Environment.getArgs
+getConfigWith :: [String] -> Either String (Config.Config, [String])
+getConfigWith args = do
   let (updates, unexpecteds, unknowns, errors) =
         Console.getOpt' Console.Permute options args
-  Monad.unless (null errors) (printErrorsAndExit errors)
-  mapM_ printUnknown unknowns
-  mapM_ printUnexpected unexpecteds
+  Monad.unless (null errors) (Left (concatMap formatError errors))
   case buildConfig updates of
-    Left problem -> do
-      IO.hPutStrLn IO.stderr ("ERROR: invalid config: " ++ problem)
-      Exit.exitFailure
+    Left problem -> Left problem
     Right config -> do
-      Monad.when (Config.configShowHelp config) printHelpAndExit
-      Monad.when (Config.configShowVersion config) printVersionAndExit
-      pure config
+      Monad.when (Config.configShowHelp config) (Left helpText)
+      Monad.when (Config.configShowVersion config) (Left Version.versionString)
+      Right
+        ( config
+        , map formatUnexpected unexpecteds ++ map formatUnknown unknowns)
+
+formatError :: String -> String
+formatError error_ = "ERROR: " ++ error_
+
+helpText :: String
+helpText =
+  Console.usageInfo
+    (unwords ["semabadge", "version", Version.versionString])
+    options
+
+formatUnexpected :: String -> String
+formatUnexpected unexpected =
+  concat ["WARNING: unexpected argument `", unexpected, "'"]
+
+formatUnknown :: String -> String
+formatUnknown unknown = concat ["WARNING: unknown option `", unknown, "'"]
 
 options :: [Option]
 options = [helpOption, hostOption, portOption, tokenOption, versionOption]
@@ -88,40 +98,8 @@ versionOption =
     (Console.NoArg (\config -> Right config {Config.configShowVersion = True}))
     "show the version number and exit"
 
-printErrorsAndExit :: [String] -> IO ()
-printErrorsAndExit errors = do
-  mapM_ printError errors
-  Exit.exitFailure
-
-printError :: String -> IO ()
-printError error_ = IO.hPutStr IO.stderr ("ERROR: " ++ error_)
-
-printUnknown :: String -> IO ()
-printUnknown unknown =
-  IO.hPutStrLn IO.stderr (concat ["WARNING: unknown option `", unknown, "'"])
-
-printUnexpected :: String -> IO ()
-printUnexpected unexpected =
-  IO.hPutStrLn
-    IO.stderr
-    (concat ["WARNING: unexpected argument `", unexpected, "'"])
-
 buildConfig ::
      [Config.Config -> Either String Config.Config]
   -> Either String Config.Config
 buildConfig updates =
   Monad.foldM (\config update -> update config) Config.defaultConfig updates
-
-printHelpAndExit :: IO ()
-printHelpAndExit = do
-  IO.hPutStr
-    IO.stderr
-    (Console.usageInfo
-       (unwords ["semabadge", "version", Version.versionString])
-       options)
-  Exit.exitFailure
-
-printVersionAndExit :: IO ()
-printVersionAndExit = do
-  IO.hPutStrLn IO.stderr Version.versionString
-  Exit.exitFailure

@@ -4,7 +4,7 @@ module Semabadge
   , Badge.badgeForBranch
   , Badge.badgeForServer
   , Badge.badgeRightLabel
-  , Command.getConfig
+  , Command.getConfigWith
   , Json.optionsFor
   , Lens.set
   , List.dropPrefix

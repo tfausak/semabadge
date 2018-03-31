@@ -8,6 +8,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Either as Either
 import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Version as Version
@@ -63,7 +64,30 @@ main =
           Semabadge.badgeRightLabel Semabadge.ResultPending `shouldBe`
             Text.pack "pending"
     describe "Command" $ do
-      describe "getConfig" $ do it "needs tests" $ pendingWith "too much IO"
+      describe "getConfigWith" $ do
+        it "returns the default with no arguments" $ do
+          Semabadge.getConfigWith [] `shouldBe`
+            Right (Semabadge.defaultConfig, [])
+        it "errors with invalid arguments" $ do
+          Semabadge.getConfigWith ["--help=invalid"] `shouldSatisfy`
+            Either.isLeft
+        it "warns about unexpected arguments" $ do
+          Semabadge.getConfigWith ["unexpected"] `shouldBe`
+            Right
+              ( Semabadge.defaultConfig
+              , ["WARNING: unexpected argument `unexpected'"])
+        it "warns about unknown options" $ do
+          Semabadge.getConfigWith ["--unknown"] `shouldBe`
+            Right
+              ( Semabadge.defaultConfig
+              , ["WARNING: unknown option `--unknown'"])
+        it "shows the help" $ do
+          Semabadge.getConfigWith ["--help"] `shouldSatisfy` Either.isLeft
+        it "shows the version" $ do
+          Semabadge.getConfigWith ["--version"] `shouldSatisfy` Either.isLeft
+        it "sets an option" $ do
+          Semabadge.getConfigWith ["--port=80"] `shouldBe`
+            Right (Semabadge.defaultConfig {Semabadge.configPort = 80}, [])
     describe "Json" $ do
       describe "optionsFor" $ do
         it "strips the field prefix" $ do
