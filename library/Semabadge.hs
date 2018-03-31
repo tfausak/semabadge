@@ -8,6 +8,9 @@ module Semabadge
   , Lens.set
   , List.dropPrefix
   , List.unsafeDropPrefix
+  , Semaphore.Perform
+  , Semaphore.getSemaphore
+  , Semaphore.semaphoreUrl
   , Branch.Branch
   , Branch.makeBranch
   , Branch.unwrapBranch
@@ -36,6 +39,7 @@ import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List
 import qualified Semabadge.Main as Main
+import qualified Semabadge.Semaphore as Semaphore
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Config as Config

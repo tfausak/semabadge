@@ -12,6 +12,8 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Version as Version
 import qualified Graphics.Badge.Barrier as Barrier
+import qualified Network.HTTP.Client.Internal as Client
+import qualified Network.HTTP.Types as Http
 import qualified Semabadge
 
 {-# ANN module "Hlint: ignore Redundant do" #-}
@@ -82,6 +84,35 @@ main =
         it "throws an exception when the prefix doesn't match" $ do
           let result = Semabadge.unsafeDropPrefix "h" "spam"
           Exception.evaluate result `shouldThrow` anyErrorCall
+    describe "Semaphore" $ do
+      describe "getSemaphore" $ do
+        let responseWith body =
+              Client.Response
+                { Client.responseStatus = Http.ok200
+                , Client.responseVersion = Http.http11
+                , Client.responseHeaders = []
+                , Client.responseBody =
+                    LazyByteString.fromStrict (Semabadge.toUtf8 body)
+                , Client.responseCookieJar = Client.createCookieJar []
+                , Client.responseClose' = Client.ResponseClose (pure ())
+                }
+            getJson path body =
+              Semabadge.getSemaphore
+                (\_ -> pure (responseWith body))
+                Nothing
+                path :: IO (Maybe Aeson.Value)
+        it "fails if the URL is invalid" $ do
+          getJson "%" "" `shouldThrow` anyException
+        it "fails if the response is invalid JSON" $ do
+          getJson "" "invalid" `shouldReturn` Nothing
+        it "succeeds" $ do getJson "" "null" `shouldReturn` Just Aeson.Null
+      describe "semaphoreUrl" $ do
+        it "builds a URL without a token" $ do
+          Semabadge.semaphoreUrl Nothing "/path" `shouldBe`
+            "https://semaphoreci.com/api/v1/path"
+        it "builds a URL with a token" $ do
+          Semabadge.semaphoreUrl (Just (Semabadge.makeToken "token")) "/path" `shouldBe`
+            "https://semaphoreci.com/api/v1/path?auth_token=token"
     describe "Type" $ do
       let parseJson :: Aeson.FromJSON json => String -> Either String json
           parseJson string =
