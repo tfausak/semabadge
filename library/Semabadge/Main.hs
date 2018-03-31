@@ -20,6 +20,7 @@ import qualified Semabadge.Lens as Lens
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.ServerStatus as ServerStatus
+import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
@@ -59,7 +60,7 @@ data Config = Config
   , configPort :: Warp.Port
   , configShowHelp :: Bool
   , configShowVersion :: Bool
-  , configToken :: Token
+  , configToken :: Token.Token
   } deriving (Eq, Show)
 
 options :: [Option]
@@ -107,7 +108,7 @@ tokenOption =
     []
     ["token"]
     (Console.ReqArg
-       (\token config -> Right config {configToken = Token token})
+       (\token config -> Right config {configToken = Token.makeToken token})
        "TOKEN")
     "Semaphore authentication token"
 
@@ -154,7 +155,7 @@ defaultConfig =
     , configPort = 8080
     , configShowHelp = False
     , configShowVersion = False
-    , configToken = Token "no-token-set"
+    , configToken = Token.makeToken "no-token-set"
     }
 
 printHelpAndExit :: IO ()
@@ -207,7 +208,7 @@ onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
 serverName :: ByteString.ByteString
 serverName = Unicode.toUtf8 ("semabadge-" ++ Version.versionString)
 
-application :: Token -> Perform IO -> Wai.Application
+application :: Token.Token -> Perform IO -> Wai.Application
 application token perform request respond = do
   response <-
     case (requestMethod request, requestPath request) of
@@ -237,7 +238,7 @@ notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
 getBranchBadgeHandler ::
      Monad io
-  => Token
+  => Token.Token
   -> Perform io
   -> Wai.Request
   -> Project
@@ -253,7 +254,7 @@ getBranchBadgeHandler token perform request project branch = do
 
 getServerBadgeHandler ::
      Monad io
-  => Token
+  => Token.Token
   -> Perform io
   -> Wai.Request
   -> Project
@@ -272,7 +273,7 @@ getBranchStatus ::
   => Perform io
   -> Project
   -> Branch
-  -> Token
+  -> Token.Token
   -> io (Maybe BranchStatus.BranchStatus)
 getBranchStatus perform project branch token =
   getSemaphore
@@ -291,7 +292,7 @@ getServerStatus ::
   => Perform io
   -> Project
   -> Server
-  -> Token
+  -> Token.Token
   -> io (Maybe ServerStatus.ServerStatus)
 getServerStatus perform project server token =
   getSemaphore
@@ -308,7 +309,7 @@ getServerStatus perform project server token =
 getSemaphore ::
      (Aeson.FromJSON json, Monad io)
   => Perform io
-  -> Token
+  -> Token.Token
   -> String
   -> io (Maybe json)
 getSemaphore perform token path = do
@@ -319,10 +320,14 @@ getSemaphore perform token path = do
   response <- perform request
   pure (Aeson.decode (Client.responseBody response))
 
-semaphoreUrl :: Token -> String -> String
+semaphoreUrl :: Token.Token -> String -> String
 semaphoreUrl token path =
   concat
-    ["https://semaphoreci.com/api/v1", path, "?auth_token=", unwrapToken token]
+    [ "https://semaphoreci.com/api/v1"
+    , path
+    , "?auth_token="
+    , Token.unwrapToken token
+    ]
 
 newtype Project =
   Project String
@@ -344,13 +349,6 @@ newtype Branch =
 
 unwrapBranch :: Branch -> String
 unwrapBranch (Branch branch) = branch
-
-newtype Token =
-  Token String
-  deriving (Eq, Show)
-
-unwrapToken :: Token -> String
-unwrapToken (Token token) = token
 
 badgeForServer ::
      ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString

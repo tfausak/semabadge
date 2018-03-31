@@ -87,6 +87,9 @@ main =
         it "fails to parse an invalid server status" $ do
           parseServerStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
+      describe "Token" $ do
+        it "can be round tripped" $ do
+          Semabadge.unwrapToken (Semabadge.makeToken "it") `shouldBe` "it"
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do

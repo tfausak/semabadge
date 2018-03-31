@@ -7,6 +7,9 @@ module Semabadge
   , BranchStatus.BranchStatus(..)
   , Result.Result(..)
   , ServerStatus.ServerStatus(..)
+  , Token.Token
+  , Token.makeToken
+  , Token.unwrapToken
   , Unicode.fromUtf8
   , Unicode.toUtf8
   , Version.version
@@ -20,5 +23,6 @@ import qualified Semabadge.Main as Main
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.ServerStatus as ServerStatus
+import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
