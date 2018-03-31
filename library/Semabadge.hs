@@ -4,6 +4,7 @@ module Semabadge
   , Badge.badgeForBranch
   , Badge.badgeForServer
   , Badge.badgeRightLabel
+  , Command.getConfig
   , Json.optionsFor
   , Lens.set
   , List.dropPrefix
@@ -37,6 +38,7 @@ module Semabadge
   ) where
 
 import qualified Semabadge.Badge as Badge
+import qualified Semabadge.Command as Command
 import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List

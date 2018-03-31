@@ -62,6 +62,8 @@ main =
         it "works for pending results" $ do
           Semabadge.badgeRightLabel Semabadge.ResultPending `shouldBe`
             Text.pack "pending"
+    describe "Command" $ do
+      describe "getConfig" $ do it "needs tests" $ pendingWith "too much IO"
     describe "Json" $ do
       describe "optionsFor" $ do
         it "strips the field prefix" $ do
