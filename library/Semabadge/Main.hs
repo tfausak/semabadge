@@ -275,11 +275,17 @@ getBranchStatus ::
   -> Branch
   -> Token
   -> io (Maybe BranchStatus)
-getBranchStatus perform (Project project) (Branch branch) token =
+getBranchStatus perform project branch token =
   getSemaphore
     perform
     token
-    (concat ["/projects/", project, "/", branch, "/status"])
+    (concat
+       [ "/projects/"
+       , unwrapProject project
+       , "/"
+       , unwrapBranch branch
+       , "/status"
+       ])
 
 getServerStatus ::
      Monad io
@@ -288,11 +294,17 @@ getServerStatus ::
   -> Server
   -> Token
   -> io (Maybe ServerStatus)
-getServerStatus perform (Project project) (Server server) token =
+getServerStatus perform project server token =
   getSemaphore
     perform
     token
-    (concat ["/projects/", project, "/servers/", server, "/status"])
+    (concat
+       [ "/projects/"
+       , unwrapProject project
+       , "/servers/"
+       , unwrapServer server
+       , "/status"
+       ])
 
 getSemaphore ::
      (Aeson.FromJSON json, Monad io)
@@ -309,24 +321,37 @@ getSemaphore perform token path = do
   pure (Aeson.decode (Client.responseBody response))
 
 semaphoreUrl :: Token -> String -> String
-semaphoreUrl (Token token) path =
-  concat ["https://semaphoreci.com/api/v1", path, "?auth_token=", token]
+semaphoreUrl token path =
+  concat
+    ["https://semaphoreci.com/api/v1", path, "?auth_token=", unwrapToken token]
 
 newtype Project =
   Project String
   deriving (Eq, Show)
 
+unwrapProject :: Project -> String
+unwrapProject (Project project) = project
+
 newtype Server =
   Server String
   deriving (Eq, Show)
+
+unwrapServer :: Server -> String
+unwrapServer (Server server) = server
 
 newtype Branch =
   Branch String
   deriving (Eq, Show)
 
+unwrapBranch :: Branch -> String
+unwrapBranch (Branch branch) = branch
+
 newtype Token =
   Token String
   deriving (Eq, Show)
+
+unwrapToken :: Token -> String
+unwrapToken (Token token) = token
 
 data Result
   = ResultFailed
