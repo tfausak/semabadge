@@ -10,13 +10,13 @@ import qualified Data.Aeson as Aeson (decode, encode)
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Functor.Identity as Identity
 import qualified Data.Maybe as Maybe
 import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified GHC.Generics as Generics
 import qualified Graphics.Badge.Barrier as Barrier
-import qualified Lens.Family as Lens
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
@@ -348,7 +348,7 @@ instance Aeson.FromJSON Result where
 badgeForServer :: ServerStatus -> Maybe String -> LazyByteString.ByteString
 badgeForServer serverStatus maybeLabel =
   Barrier.renderBadge
-    (Lens.set
+    (lensSet
        Barrier.right
        (badgeColor (serverStatusResult serverStatus))
        Barrier.flat)
@@ -358,12 +358,16 @@ badgeForServer serverStatus maybeLabel =
 badgeForBranch :: BranchStatus -> Maybe String -> LazyByteString.ByteString
 badgeForBranch branchStatus maybeLabel =
   Barrier.renderBadge
-    (Lens.set
+    (lensSet
        Barrier.right
        (badgeColor (branchStatusResult branchStatus))
        Barrier.flat)
     (maybe (branchStatusBranchName branchStatus) Text.pack maybeLabel)
     (badgeRightLabel (branchStatusResult branchStatus))
+
+lensSet ::
+     ((a -> Identity.Identity b) -> s -> Identity.Identity t) -> b -> s -> t
+lensSet l b s = Identity.runIdentity (l (\_ -> Identity.Identity b) s)
 
 badgeColor :: Result -> Barrier.Color
 badgeColor result =
