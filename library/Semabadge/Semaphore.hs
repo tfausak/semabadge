@@ -4,6 +4,7 @@ module Semabadge.Semaphore
   , semaphoreUrl
   ) where
 
+import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Network.HTTP.Client as Client
@@ -18,13 +19,12 @@ getSemaphore ::
   -> Maybe Token.Token
   -> String
   -> io (Either String json)
-getSemaphore perform token path = do
-  request <-
-    case Client.parseRequest (semaphoreUrl token path) of
-      Left message -> fail (show message)
-      Right request -> pure request
-  response <- perform request
-  pure (Aeson.eitherDecode (Client.responseBody response))
+getSemaphore perform token path =
+  case Client.parseRequest (semaphoreUrl token path) of
+    Left message -> pure (Left (Exception.displayException message))
+    Right request -> do
+      response <- perform request
+      pure (Aeson.eitherDecode (Client.responseBody response))
 
 semaphoreUrl :: Maybe Token.Token -> String -> String
 semaphoreUrl maybeToken path =

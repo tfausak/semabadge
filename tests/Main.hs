@@ -102,7 +102,9 @@ main =
                 Nothing
                 path :: IO (Either String Aeson.Value)
         it "fails if the URL is invalid" $ do
-          getJson "%" "" `shouldThrow` anyException
+          getJson "%" "" `shouldReturn`
+            Left
+              "InvalidUrlException \"https://semaphoreci.com/api/v1%\" \"Invalid URL\""
         it "fails if the response is invalid JSON" $ do
           getJson "" "invalid" `shouldReturn`
             Left "Error in $: Failed reading: not a valid json value"
