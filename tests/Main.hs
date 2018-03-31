@@ -5,7 +5,8 @@ module Main
 import Test.Hspec
 
 import qualified Control.Exception as Exception
-import qualified Data.Aeson as Aeson
+import qualified Data.Aeson as Aeson (eitherDecode)
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Either as Either
