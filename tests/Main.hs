@@ -5,6 +5,7 @@ module Main
 import Test.Hspec
 
 import qualified Control.Exception as Exception
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.Version as Version
 import qualified Semabadge
@@ -14,6 +15,14 @@ import qualified Semabadge
 main :: IO ()
 main =
   hspec . parallel . describe "Semabadge" $ do
+    describe "Json" $ do
+      describe "optionsFor" $ do
+        it "strips the field prefix" $ do
+          let options = Semabadge.optionsFor "p"
+          Aeson.fieldLabelModifier options "pf" `shouldBe` "f"
+        it "converts the field to camel case" $ do
+          let options = Semabadge.optionsFor ""
+          Aeson.fieldLabelModifier options "fA" `shouldBe` "f_a"
     describe "Lens" $ do
       describe "set" $ do
         it "sets the value" $ do
@@ -30,8 +39,8 @@ main =
         it "drops the prefix" $ do
           Semabadge.unsafeDropPrefix "sp" "spam" `shouldBe` "am"
         it "throws an exception when the prefix doesn't match" $ do
-          Exception.evaluate (Semabadge.unsafeDropPrefix "h" "spam") `shouldThrow`
-            anyErrorCall
+          let result = Semabadge.unsafeDropPrefix "h" "spam"
+          Exception.evaluate result `shouldThrow` anyErrorCall
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do

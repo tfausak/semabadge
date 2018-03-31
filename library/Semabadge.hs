@@ -1,5 +1,6 @@
 module Semabadge
   ( Main.defaultMain
+  , Json.optionsFor
   , Lens.set
   , List.dropPrefix
   , List.unsafeDropPrefix
@@ -9,6 +10,7 @@ module Semabadge
   , Version.versionString
   ) where
 
+import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List
 import qualified Semabadge.Main as Main

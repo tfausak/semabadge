@@ -19,8 +19,8 @@ import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
-import qualified Semabadge.List as List
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
@@ -386,7 +386,7 @@ data ServerStatus = ServerStatus
   } deriving (Eq, Generics.Generic, Show)
 
 instance Aeson.FromJSON ServerStatus where
-  parseJSON = Aeson.genericParseJSON (optionsFor "serverStatus")
+  parseJSON = Aeson.genericParseJSON (Json.optionsFor "serverStatus")
 
 data BranchStatus = BranchStatus
   { branchStatusResult :: Result
@@ -394,14 +394,7 @@ data BranchStatus = BranchStatus
   } deriving (Eq, Generics.Generic, Show)
 
 instance Aeson.FromJSON BranchStatus where
-  parseJSON = Aeson.genericParseJSON (optionsFor "branchStatus")
-
-optionsFor :: String -> Aeson.Options
-optionsFor prefix =
-  Aeson.defaultOptions
-    { Aeson.fieldLabelModifier =
-        Aeson.camelTo2 '_' . List.unsafeDropPrefix prefix
-    }
+  parseJSON = Aeson.genericParseJSON (Json.optionsFor "branchStatus")
 
 jsonResponse ::
      Aeson.ToJSON json
