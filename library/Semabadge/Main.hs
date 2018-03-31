@@ -430,8 +430,11 @@ jsonResponse ::
 jsonResponse status headers json =
   Wai.responseLBS
     status
-    ((Http.hContentType, Unicode.toUtf8 "application/json") : headers)
+    ((Http.hContentType, jsonMime) : headers)
     (Aeson.encode json)
+
+jsonMime :: ByteString.ByteString
+jsonMime = Unicode.toUtf8 "application/json"
 
 svgResponse ::
      Http.Status
@@ -439,10 +442,10 @@ svgResponse ::
   -> LazyByteString.ByteString
   -> Wai.Response
 svgResponse status headers svg =
-  Wai.responseLBS
-    status
-    ((Http.hContentType, Unicode.toUtf8 "image/svg+xml") : headers)
-    svg
+  Wai.responseLBS status ((Http.hContentType, svgMime) : headers) svg
+
+svgMime :: ByteString.ByteString
+svgMime = Unicode.toUtf8 "image/svg+xml"
 
 requestMethod :: Wai.Request -> String
 requestMethod request = Unicode.fromUtf8 (Wai.requestMethod request)
