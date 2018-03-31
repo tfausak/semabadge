@@ -4,6 +4,7 @@ module Main
 
 import Test.Hspec
 
+import qualified Data.ByteString as ByteString
 import qualified Data.Version as Version
 import qualified Semabadge
 
@@ -12,6 +13,15 @@ import qualified Semabadge
 main :: IO ()
 main =
   hspec . parallel . describe "Semabadge" $ do
+    describe "Unicode" $ do
+      describe "fromUtf8" $ do
+        it "decodes UTF-8" $ do
+          Semabadge.fromUtf8 (ByteString.pack [0x68, 0x69]) `shouldBe` "hi"
+        it "replaces invalid bytes" $ do
+          Semabadge.fromUtf8 (ByteString.pack [0xc0]) `shouldBe` "\xfffd"
+      describe "toUtf8" $ do
+        it "encodes UTF-8" $ do
+          Semabadge.toUtf8 "hi" `shouldBe` ByteString.pack [0x68, 0x69]
     describe "Version" $ do
       describe "version" $ do
         it "has some numbers" $ do

@@ -14,8 +14,6 @@ import qualified Data.Functor.Identity as Identity
 import qualified Data.Maybe as Maybe
 import qualified Data.String as String
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
-import qualified Data.Text.Encoding.Error as Text
 import qualified GHC.Generics as Generics
 import qualified Graphics.Badge.Barrier as Barrier
 import qualified Network.HTTP.Client as Client
@@ -23,6 +21,7 @@ import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
 import qualified System.Environment as Environment
@@ -197,8 +196,8 @@ requestLog request status =
   concat
     [ requestMethod request
     , " "
-    , fromUtf8 (Wai.rawPathInfo request)
-    , fromUtf8 (Wai.rawQueryString request)
+    , Unicode.fromUtf8 (Wai.rawPathInfo request)
+    , Unicode.fromUtf8 (Wai.rawQueryString request)
     , " "
     , show (Http.statusCode status)
     ]
@@ -207,7 +206,7 @@ onExceptionResponse :: Exception.SomeException -> Wai.Response
 onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
 
 serverName :: ByteString.ByteString
-serverName = toUtf8 ("semabadge-" ++ Version.versionString)
+serverName = Unicode.toUtf8 ("semabadge-" ++ Version.versionString)
 
 application :: Token -> Perform IO -> Wai.Application
 application token perform request respond = do
@@ -424,13 +423,6 @@ dropPrefix prefix list =
             then dropPrefix pt lt
             else Nothing
 
-toUtf8 :: String -> ByteString.ByteString
-toUtf8 string = Text.encodeUtf8 (Text.pack string)
-
-fromUtf8 :: ByteString.ByteString -> String
-fromUtf8 byteString =
-  Text.unpack (Text.decodeUtf8With Text.lenientDecode byteString)
-
 jsonResponse ::
      Aeson.ToJSON json
   => Http.Status
@@ -440,7 +432,7 @@ jsonResponse ::
 jsonResponse status headers json =
   Wai.responseLBS
     status
-    ((Http.hContentType, toUtf8 "application/json") : headers)
+    ((Http.hContentType, Unicode.toUtf8 "application/json") : headers)
     (Aeson.encode json)
 
 svgResponse ::
@@ -451,18 +443,18 @@ svgResponse ::
 svgResponse status headers svg =
   Wai.responseLBS
     status
-    ((Http.hContentType, toUtf8 "image/svg+xml") : headers)
+    ((Http.hContentType, Unicode.toUtf8 "image/svg+xml") : headers)
     svg
 
 requestMethod :: Wai.Request -> String
-requestMethod request = fromUtf8 (Wai.requestMethod request)
+requestMethod request = Unicode.fromUtf8 (Wai.requestMethod request)
 
 requestPath :: Wai.Request -> [String]
 requestPath request = map Text.unpack (Wai.pathInfo request)
 
 requestParam :: String -> Wai.Request -> Maybe String
 requestParam key request =
-  case lookup (toUtf8 key) (Wai.queryString request) of
+  case lookup (Unicode.toUtf8 key) (Wai.queryString request) of
     Nothing -> Nothing
     Just Nothing -> Nothing
-    Just (Just value) -> Just (fromUtf8 value)
+    Just (Just value) -> Just (Unicode.fromUtf8 value)
