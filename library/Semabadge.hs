@@ -9,6 +9,9 @@ module Semabadge
   , Branch.unwrapBranch
   , BranchStatus.BranchStatus(..)
   , Result.Result(..)
+  , Server.Server
+  , Server.makeServer
+  , Server.unwrapServer
   , ServerStatus.ServerStatus(..)
   , Token.Token
   , Token.makeToken
@@ -26,6 +29,7 @@ import qualified Semabadge.Main as Main
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
+import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.ServerStatus as ServerStatus
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode

@@ -20,6 +20,7 @@ import qualified Semabadge.Lens as Lens
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
+import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.ServerStatus as ServerStatus
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
@@ -227,7 +228,7 @@ application token perform request respond = do
           perform
           request
           (Project project)
-          (Server server)
+          (Server.makeServer server)
       _ -> notFoundHandler
   respond response
 
@@ -259,7 +260,7 @@ getServerBadgeHandler ::
   -> Perform io
   -> Wai.Request
   -> Project
-  -> Server
+  -> Server.Server
   -> io Wai.Response
 getServerBadgeHandler token perform request project server = do
   result <- getServerStatus perform project server token
@@ -292,7 +293,7 @@ getServerStatus ::
      Monad io
   => Perform io
   -> Project
-  -> Server
+  -> Server.Server
   -> Token.Token
   -> io (Maybe ServerStatus.ServerStatus)
 getServerStatus perform project server token =
@@ -303,7 +304,7 @@ getServerStatus perform project server token =
        [ "/projects/"
        , unwrapProject project
        , "/servers/"
-       , unwrapServer server
+       , Server.unwrapServer server
        , "/status"
        ])
 
@@ -336,13 +337,6 @@ newtype Project =
 
 unwrapProject :: Project -> String
 unwrapProject (Project project) = project
-
-newtype Server =
-  Server String
-  deriving (Eq, Show)
-
-unwrapServer :: Server -> String
-unwrapServer (Server server) = server
 
 badgeForServer ::
      ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString

@@ -76,6 +76,9 @@ main =
         it "fails to parse an invalid result" $ do
           parseResult "null" `shouldBe`
             Left "Error in $: expected Result, encountered Null"
+      describe "Server" $ do
+        it "can be round tripped" $ do
+          Semabadge.unwrapServer (Semabadge.makeServer "it") `shouldBe` "it"
       describe "ServerStatus" $ do
         let parseServerStatus =
               parseJson :: String -> Either String Semabadge.ServerStatus
