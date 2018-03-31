@@ -5,6 +5,11 @@ module Semabadge
   , Badge.badgeForServer
   , Badge.badgeRightLabel
   , Command.getConfigWith
+  , Handler.exceptionHandler
+  , Handler.defaultHandler
+  , Handler.getHealthCheckHandler
+  , Handler.getBranchBadgeHandler
+  , Handler.getServerBadgeHandler
   , Json.optionsFor
   , Lens.set
   , List.dropPrefix
@@ -39,6 +44,7 @@ module Semabadge
 
 import qualified Semabadge.Badge as Badge
 import qualified Semabadge.Command as Command
+import qualified Semabadge.Handler as Handler
 import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List

@@ -88,6 +88,12 @@ main =
         it "sets an option" $ do
           Semabadge.getConfigWith ["--port=80"] `shouldBe`
             Right (Semabadge.defaultConfig {Semabadge.configPort = 80}, [])
+    describe "Handler" $ do
+      describe "exceptionHandler" $ it "needs tests" pending
+      describe "defaultHandler" $ it "needs tests" pending
+      describe "getHealthCheckHandler" $ it "needs tests" pending
+      describe "getBranchBadgeHandler" $ it "needs tests" pending
+      describe "getServerBadgeHandler" $ it "needs tests" pending
     describe "Json" $ do
       describe "optionsFor" $ do
         it "strips the field prefix" $ do
