@@ -17,6 +17,7 @@ import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Lens as Lens
+import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.ServerStatus as ServerStatus
@@ -219,7 +220,7 @@ application token perform request respond = do
           perform
           request
           (Project project)
-          (Branch branch)
+          (Branch.makeBranch branch)
       ("GET", ["projects", project, "servers", server]) ->
         getServerBadgeHandler
           token
@@ -242,7 +243,7 @@ getBranchBadgeHandler ::
   -> Perform io
   -> Wai.Request
   -> Project
-  -> Branch
+  -> Branch.Branch
   -> io Wai.Response
 getBranchBadgeHandler token perform request project branch = do
   result <- getBranchStatus perform project branch token
@@ -272,7 +273,7 @@ getBranchStatus ::
      Monad io
   => Perform io
   -> Project
-  -> Branch
+  -> Branch.Branch
   -> Token.Token
   -> io (Maybe BranchStatus.BranchStatus)
 getBranchStatus perform project branch token =
@@ -283,7 +284,7 @@ getBranchStatus perform project branch token =
        [ "/projects/"
        , unwrapProject project
        , "/"
-       , unwrapBranch branch
+       , Branch.unwrapBranch branch
        , "/status"
        ])
 
@@ -342,13 +343,6 @@ newtype Server =
 
 unwrapServer :: Server -> String
 unwrapServer (Server server) = server
-
-newtype Branch =
-  Branch String
-  deriving (Eq, Show)
-
-unwrapBranch :: Branch -> String
-unwrapBranch (Branch branch) = branch
 
 badgeForServer ::
      ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString

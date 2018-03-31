@@ -48,6 +48,9 @@ main =
           parseJson string =
             Aeson.eitherDecode
               (LazyByteString.fromStrict (Semabadge.toUtf8 string))
+      describe "Branch" $ do
+        it "can be round tripped" $ do
+          Semabadge.unwrapBranch (Semabadge.makeBranch "it") `shouldBe` "it"
       describe "BranchStatus" $ do
         let parseBranchStatus =
               parseJson :: String -> Either String Semabadge.BranchStatus

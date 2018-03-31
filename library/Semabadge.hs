@@ -4,6 +4,9 @@ module Semabadge
   , Lens.set
   , List.dropPrefix
   , List.unsafeDropPrefix
+  , Branch.Branch
+  , Branch.makeBranch
+  , Branch.unwrapBranch
   , BranchStatus.BranchStatus(..)
   , Result.Result(..)
   , ServerStatus.ServerStatus(..)
@@ -20,6 +23,7 @@ import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List
 import qualified Semabadge.Main as Main
+import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.ServerStatus as ServerStatus
