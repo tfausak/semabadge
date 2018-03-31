@@ -15,6 +15,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Encoding.Error as Text
 import qualified GHC.Generics as Generics
 import qualified Graphics.Badge.Barrier as Barrier
 import qualified Network.HTTP.Client as Client
@@ -427,7 +428,8 @@ toUtf8 :: String -> ByteString.ByteString
 toUtf8 string = Text.encodeUtf8 (Text.pack string)
 
 fromUtf8 :: ByteString.ByteString -> String
-fromUtf8 byteString = Text.unpack (Text.decodeUtf8 byteString)
+fromUtf8 byteString =
+  Text.unpack (Text.decodeUtf8With Text.lenientDecode byteString)
 
 jsonResponse ::
      Aeson.ToJSON json
