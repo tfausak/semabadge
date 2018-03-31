@@ -10,18 +10,16 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.String as String
 import qualified Data.Text as Text
-import qualified Graphics.Badge.Barrier as Barrier
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Client.TLS as Client
 import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Semabadge.Lens as Lens
+import qualified Semabadge.Badge as Badge
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Config as Config
 import qualified Semabadge.Type.Project as Project
-import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.ServerStatus as ServerStatus
 import qualified Semabadge.Type.Token as Token
@@ -239,7 +237,11 @@ getBranchBadgeHandler token perform request project branch = do
     Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Just branchStatus -> do
       let maybeLabel = requestParam "label" request
-      pure (svgResponse Http.ok200 [] (badgeForBranch branchStatus maybeLabel))
+      pure
+        (svgResponse
+           Http.ok200
+           []
+           (Badge.badgeForBranch branchStatus maybeLabel))
 
 getServerBadgeHandler ::
      Monad io
@@ -255,7 +257,11 @@ getServerBadgeHandler token perform request project server = do
     Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Just serverStatus -> do
       let maybeLabel = requestParam "label" request
-      pure (svgResponse Http.ok200 [] (badgeForServer serverStatus maybeLabel))
+      pure
+        (svgResponse
+           Http.ok200
+           []
+           (Badge.badgeForServer serverStatus maybeLabel))
 
 getBranchStatus ::
      Monad io
@@ -318,49 +324,6 @@ semaphoreUrl maybeToken path =
         Nothing -> ""
         Just token -> "?auth_token=" ++ Token.unwrapToken token
     ]
-
-badgeForServer ::
-     ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString
-badgeForServer serverStatus maybeLabel =
-  Barrier.renderBadge
-    (Lens.set
-       Barrier.right
-       (badgeColor (ServerStatus.serverStatusResult serverStatus))
-       Barrier.flat)
-    (maybe
-       (ServerStatus.serverStatusServerName serverStatus)
-       Text.pack
-       maybeLabel)
-    (badgeRightLabel (ServerStatus.serverStatusResult serverStatus))
-
-badgeForBranch ::
-     BranchStatus.BranchStatus -> Maybe String -> LazyByteString.ByteString
-badgeForBranch branchStatus maybeLabel =
-  Barrier.renderBadge
-    (Lens.set
-       Barrier.right
-       (badgeColor (BranchStatus.branchStatusResult branchStatus))
-       Barrier.flat)
-    (maybe
-       (BranchStatus.branchStatusBranchName branchStatus)
-       Text.pack
-       maybeLabel)
-    (badgeRightLabel (BranchStatus.branchStatusResult branchStatus))
-
-badgeColor :: Result.Result -> Barrier.Color
-badgeColor result =
-  case result of
-    Result.ResultFailed -> Barrier.red
-    Result.ResultPassed -> Barrier.brightgreen
-    Result.ResultPending -> Barrier.gray
-
-badgeRightLabel :: Result.Result -> Text.Text
-badgeRightLabel result =
-  Text.pack
-    (case result of
-       Result.ResultFailed -> "failed"
-       Result.ResultPassed -> "passed"
-       Result.ResultPending -> "pending")
 
 jsonResponse ::
      Aeson.ToJSON json

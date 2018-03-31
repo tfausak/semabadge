@@ -11,6 +11,7 @@ import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Version as Version
+import qualified Graphics.Badge.Barrier as Barrier
 import qualified Semabadge
 
 {-# ANN module "Hlint: ignore Redundant do" #-}
@@ -18,6 +19,43 @@ import qualified Semabadge
 main :: IO ()
 main =
   hspec . parallel . describe "Semabadge" $ do
+    let branchStatus =
+          Semabadge.BranchStatus
+            { Semabadge.branchStatusResult = Semabadge.ResultPassed
+            , Semabadge.branchStatusBranchName = Text.pack "master"
+            }
+        serverStatus =
+          Semabadge.ServerStatus
+            { Semabadge.serverStatusResult = Semabadge.ResultPassed
+            , Semabadge.serverStatusServerName = Text.pack "production"
+            }
+    describe "Badge" $ do
+      describe "badgeColor" $ do
+        it "is red for failed results" $ do
+          Semabadge.badgeColor Semabadge.ResultFailed `shouldBe` Barrier.red
+        it "is green for passed results" $ do
+          Semabadge.badgeColor Semabadge.ResultPassed `shouldBe`
+            Barrier.brightgreen
+        it "is gray for pending results" $ do
+          Semabadge.badgeColor Semabadge.ResultPending `shouldBe` Barrier.gray
+      describe "badgeForBranch" $ do
+        it "is not empty" $ do
+          Semabadge.badgeForBranch branchStatus Nothing `shouldNotSatisfy`
+            LazyByteString.null
+      describe "badgeForServer" $ do
+        it "is not empty" $ do
+          Semabadge.badgeForServer serverStatus Nothing `shouldNotSatisfy`
+            LazyByteString.null
+      describe "badgeRightLabel" $ do
+        it "works for failed results" $ do
+          Semabadge.badgeRightLabel Semabadge.ResultFailed `shouldBe`
+            Text.pack "failed"
+        it "works for passed results" $ do
+          Semabadge.badgeRightLabel Semabadge.ResultPassed `shouldBe`
+            Text.pack "passed"
+        it "works for pending results" $ do
+          Semabadge.badgeRightLabel Semabadge.ResultPending `shouldBe`
+            Text.pack "pending"
     describe "Json" $ do
       describe "optionsFor" $ do
         it "strips the field prefix" $ do
@@ -58,11 +96,7 @@ main =
         it "parses a branch status" $ do
           parseBranchStatus
             "{ \"result\": \"passed\", \"branch_name\": \"master\" }" `shouldBe`
-            Right
-              Semabadge.BranchStatus
-                { Semabadge.branchStatusResult = Semabadge.ResultPassed
-                , Semabadge.branchStatusBranchName = Text.pack "master"
-                }
+            Right branchStatus
         it "fails to parse an invalid branch status" $ do
           parseBranchStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
@@ -99,11 +133,7 @@ main =
         it "parses a server status" $ do
           parseServerStatus
             "{ \"result\": \"passed\", \"server_name\": \"production\" }" `shouldBe`
-            Right
-              Semabadge.ServerStatus
-                { Semabadge.serverStatusResult = Semabadge.ResultPassed
-                , Semabadge.serverStatusServerName = Text.pack "production"
-                }
+            Right serverStatus
         it "fails to parse an invalid server status" $ do
           parseServerStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"

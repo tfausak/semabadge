@@ -1,5 +1,9 @@
 module Semabadge
   ( Main.defaultMain
+  , Badge.badgeColor
+  , Badge.badgeForBranch
+  , Badge.badgeForServer
+  , Badge.badgeRightLabel
   , Json.optionsFor
   , Lens.set
   , List.dropPrefix
@@ -27,6 +31,7 @@ module Semabadge
   , Version.versionString
   ) where
 
+import qualified Semabadge.Badge as Badge
 import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.List as List
