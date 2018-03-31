@@ -21,6 +21,7 @@ import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
+import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
@@ -353,23 +354,6 @@ newtype Token =
 unwrapToken :: Token -> String
 unwrapToken (Token token) = token
 
-data Result
-  = ResultFailed
-  | ResultPassed
-  | ResultPending
-  deriving (Eq, Show)
-
-instance Aeson.FromJSON Result where
-  parseJSON =
-    Aeson.withText
-      "Result"
-      (\text ->
-         case Text.unpack text of
-           "failed" -> pure ResultFailed
-           "passed" -> pure ResultPassed
-           "pending" -> pure ResultPending
-           _ -> mempty)
-
 badgeForServer :: ServerStatus -> Maybe String -> LazyByteString.ByteString
 badgeForServer serverStatus maybeLabel =
   Barrier.renderBadge
@@ -390,23 +374,23 @@ badgeForBranch branchStatus maybeLabel =
     (maybe (branchStatusBranchName branchStatus) Text.pack maybeLabel)
     (badgeRightLabel (branchStatusResult branchStatus))
 
-badgeColor :: Result -> Barrier.Color
+badgeColor :: Result.Result -> Barrier.Color
 badgeColor result =
   case result of
-    ResultFailed -> Barrier.red
-    ResultPassed -> Barrier.brightgreen
-    ResultPending -> Barrier.gray
+    Result.ResultFailed -> Barrier.red
+    Result.ResultPassed -> Barrier.brightgreen
+    Result.ResultPending -> Barrier.gray
 
-badgeRightLabel :: Result -> Text.Text
+badgeRightLabel :: Result.Result -> Text.Text
 badgeRightLabel result =
   Text.pack
     (case result of
-       ResultFailed -> "failed"
-       ResultPassed -> "passed"
-       ResultPending -> "pending")
+       Result.ResultFailed -> "failed"
+       Result.ResultPassed -> "passed"
+       Result.ResultPending -> "pending")
 
 data ServerStatus = ServerStatus
-  { serverStatusResult :: Result
+  { serverStatusResult :: Result.Result
   , serverStatusServerName :: Text.Text
   } deriving (Eq, Generics.Generic, Show)
 
@@ -414,7 +398,7 @@ instance Aeson.FromJSON ServerStatus where
   parseJSON = Aeson.genericParseJSON (Json.optionsFor "serverStatus")
 
 data BranchStatus = BranchStatus
-  { branchStatusResult :: Result
+  { branchStatusResult :: Result.Result
   , branchStatusBranchName :: Text.Text
   } deriving (Eq, Generics.Generic, Show)
 

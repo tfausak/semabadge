@@ -7,6 +7,7 @@ import Test.Hspec
 import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Version as Version
 import qualified Semabadge
 
@@ -41,6 +42,21 @@ main =
         it "throws an exception when the prefix doesn't match" $ do
           let result = Semabadge.unsafeDropPrefix "h" "spam"
           Exception.evaluate result `shouldThrow` anyErrorCall
+    describe "Type" $ do
+      describe "Result" $ do
+        let parseResult :: String -> Either String Semabadge.Result
+            parseResult string =
+              Aeson.eitherDecode
+                (LazyByteString.fromStrict (Semabadge.toUtf8 string))
+        it "parses a failed result" $ do
+          parseResult "\"failed\"" `shouldBe` Right Semabadge.ResultFailed
+        it "parses a passed result" $ do
+          parseResult "\"passed\"" `shouldBe` Right Semabadge.ResultPassed
+        it "parses a pending result" $ do
+          parseResult "\"pending\"" `shouldBe` Right Semabadge.ResultPending
+        it "fails to parse an unknown result" $ do
+          parseResult "\"unknown\"" `shouldBe`
+            Left "Error in $: expected Result, encountered String"
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do
