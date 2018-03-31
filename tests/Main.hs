@@ -8,6 +8,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Text as Text
 import qualified Data.Version as Version
 import qualified Semabadge
 
@@ -43,20 +44,35 @@ main =
           let result = Semabadge.unsafeDropPrefix "h" "spam"
           Exception.evaluate result `shouldThrow` anyErrorCall
     describe "Type" $ do
+      let parseJson :: Aeson.FromJSON json => String -> Either String json
+          parseJson string =
+            Aeson.eitherDecode
+              (LazyByteString.fromStrict (Semabadge.toUtf8 string))
+      describe "BranchStatus" $ do
+        let parseBranchStatus =
+              parseJson :: String -> Either String Semabadge.BranchStatus
+        it "parses a branch status" $ do
+          parseBranchStatus
+            "{ \"result\": \"passed\", \"branch_name\": \"master\" }" `shouldBe`
+            Right
+              Semabadge.BranchStatus
+                { Semabadge.branchStatusResult = Semabadge.ResultPassed
+                , Semabadge.branchStatusBranchName = Text.pack "master"
+                }
+        it "fails to parse an invalid branch status" $ do
+          parseBranchStatus "null" `shouldBe`
+            Left "Error in $: expected record (:*:), encountered Null"
       describe "Result" $ do
-        let parseResult :: String -> Either String Semabadge.Result
-            parseResult string =
-              Aeson.eitherDecode
-                (LazyByteString.fromStrict (Semabadge.toUtf8 string))
+        let parseResult = parseJson :: String -> Either String Semabadge.Result
         it "parses a failed result" $ do
           parseResult "\"failed\"" `shouldBe` Right Semabadge.ResultFailed
         it "parses a passed result" $ do
           parseResult "\"passed\"" `shouldBe` Right Semabadge.ResultPassed
         it "parses a pending result" $ do
           parseResult "\"pending\"" `shouldBe` Right Semabadge.ResultPending
-        it "fails to parse an unknown result" $ do
-          parseResult "\"unknown\"" `shouldBe`
-            Left "Error in $: expected Result, encountered String"
+        it "fails to parse an invalid result" $ do
+          parseResult "null" `shouldBe`
+            Left "Error in $: expected Result, encountered Null"
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do

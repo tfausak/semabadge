@@ -21,6 +21,7 @@ import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Json as Json
 import qualified Semabadge.Lens as Lens
+import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
@@ -275,7 +276,7 @@ getBranchStatus ::
   -> Project
   -> Branch
   -> Token
-  -> io (Maybe BranchStatus)
+  -> io (Maybe BranchStatus.BranchStatus)
 getBranchStatus perform project branch token =
   getSemaphore
     perform
@@ -364,15 +365,19 @@ badgeForServer serverStatus maybeLabel =
     (maybe (serverStatusServerName serverStatus) Text.pack maybeLabel)
     (badgeRightLabel (serverStatusResult serverStatus))
 
-badgeForBranch :: BranchStatus -> Maybe String -> LazyByteString.ByteString
+badgeForBranch ::
+     BranchStatus.BranchStatus -> Maybe String -> LazyByteString.ByteString
 badgeForBranch branchStatus maybeLabel =
   Barrier.renderBadge
     (Lens.set
        Barrier.right
-       (badgeColor (branchStatusResult branchStatus))
+       (badgeColor (BranchStatus.branchStatusResult branchStatus))
        Barrier.flat)
-    (maybe (branchStatusBranchName branchStatus) Text.pack maybeLabel)
-    (badgeRightLabel (branchStatusResult branchStatus))
+    (maybe
+       (BranchStatus.branchStatusBranchName branchStatus)
+       Text.pack
+       maybeLabel)
+    (badgeRightLabel (BranchStatus.branchStatusResult branchStatus))
 
 badgeColor :: Result.Result -> Barrier.Color
 badgeColor result =
@@ -396,14 +401,6 @@ data ServerStatus = ServerStatus
 
 instance Aeson.FromJSON ServerStatus where
   parseJSON = Aeson.genericParseJSON (Json.optionsFor "serverStatus")
-
-data BranchStatus = BranchStatus
-  { branchStatusResult :: Result.Result
-  , branchStatusBranchName :: Text.Text
-  } deriving (Eq, Generics.Generic, Show)
-
-instance Aeson.FromJSON BranchStatus where
-  parseJSON = Aeson.genericParseJSON (Json.optionsFor "branchStatus")
 
 jsonResponse ::
      Aeson.ToJSON json
