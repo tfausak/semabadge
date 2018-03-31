@@ -36,7 +36,6 @@ main =
             }
         serverStatusJson =
           "{ \"result\": \"passed\", \"server_name\": \"production\" }"
-    describe "Application" . describe "application" $ it "needs tests" pending
     describe "Badge" $ do
       describe "badgeColor" $ do
         it "is red for failed results" $ do
@@ -89,12 +88,6 @@ main =
         it "sets an option" $ do
           Semabadge.getConfigWith ["--port=80"] `shouldBe`
             Right (Semabadge.defaultConfig {Semabadge.configPort = 80}, [])
-    describe "Handler" $ do
-      describe "exceptionHandler" $ it "needs tests" pending
-      describe "defaultHandler" $ it "needs tests" pending
-      describe "getHealthCheckHandler" $ it "needs tests" pending
-      describe "getBranchBadgeHandler" $ it "needs tests" pending
-      describe "getServerBadgeHandler" $ it "needs tests" pending
     describe "Json" $ do
       describe "optionsFor" $ do
         it "strips the field prefix" $ do
@@ -169,7 +162,6 @@ main =
         it "builds a URL with a token" $ do
           Semabadge.semaphoreUrl (Just (Semabadge.makeToken "token")) "/path" `shouldBe`
             "https://semaphoreci.com/api/v1/path?auth_token=token"
-    describe "Server" . describe "settings" $ it "needs tests" pending
     describe "Type" $ do
       let parseJson :: Aeson.FromJSON json => String -> Either String json
           parseJson string =
