@@ -18,11 +18,9 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Badge as Badge
 import qualified Semabadge.Semaphore as Semaphore
 import qualified Semabadge.Type.Branch as Branch
-import qualified Semabadge.Type.BranchStatus as BranchStatus
 import qualified Semabadge.Type.Config as Config
 import qualified Semabadge.Type.Project as Project
 import qualified Semabadge.Type.Server as Server
-import qualified Semabadge.Type.ServerStatus as ServerStatus
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
@@ -230,7 +228,7 @@ getBranchBadgeHandler ::
   -> Branch.Branch
   -> io Wai.Response
 getBranchBadgeHandler token perform request project branch = do
-  result <- getBranchStatus perform project branch token
+  result <- Semaphore.getBranchStatus perform project branch token
   case result of
     Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Right branchStatus -> do
@@ -250,7 +248,7 @@ getServerBadgeHandler ::
   -> Server.Server
   -> io Wai.Response
 getServerBadgeHandler token perform request project server = do
-  result <- getServerStatus perform project server token
+  result <- Semaphore.getServerStatus perform project server token
   case result of
     Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Right serverStatus -> do
@@ -260,44 +258,6 @@ getServerBadgeHandler token perform request project server = do
            Http.ok200
            []
            (Badge.badgeForServer serverStatus maybeLabel))
-
-getBranchStatus ::
-     Monad io
-  => Semaphore.Perform io
-  -> Project.Project
-  -> Branch.Branch
-  -> Maybe Token.Token
-  -> io (Either String BranchStatus.BranchStatus)
-getBranchStatus perform project branch token =
-  Semaphore.getSemaphore
-    perform
-    token
-    (concat
-       [ "/projects/"
-       , Project.unwrapProject project
-       , "/"
-       , Branch.unwrapBranch branch
-       , "/status"
-       ])
-
-getServerStatus ::
-     Monad io
-  => Semaphore.Perform io
-  -> Project.Project
-  -> Server.Server
-  -> Maybe Token.Token
-  -> io (Either String ServerStatus.ServerStatus)
-getServerStatus perform project server token =
-  Semaphore.getSemaphore
-    perform
-    token
-    (concat
-       [ "/projects/"
-       , Project.unwrapProject project
-       , "/servers/"
-       , Server.unwrapServer server
-       , "/status"
-       ])
 
 jsonResponse ::
      Aeson.ToJSON json

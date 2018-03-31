@@ -9,7 +9,9 @@ module Semabadge
   , List.dropPrefix
   , List.unsafeDropPrefix
   , Semaphore.Perform
+  , Semaphore.getBranchStatus
   , Semaphore.getSemaphore
+  , Semaphore.getServerStatus
   , Semaphore.semaphoreUrl
   , Branch.Branch
   , Branch.makeBranch

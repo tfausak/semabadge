@@ -26,11 +26,15 @@ main =
             { Semabadge.branchStatusResult = Semabadge.ResultPassed
             , Semabadge.branchStatusBranchName = Text.pack "master"
             }
+        branchStatusJson =
+          "{ \"result\": \"passed\", \"branch_name\": \"master\" }"
         serverStatus =
           Semabadge.ServerStatus
             { Semabadge.serverStatusResult = Semabadge.ResultPassed
             , Semabadge.serverStatusServerName = Text.pack "production"
             }
+        serverStatusJson =
+          "{ \"result\": \"passed\", \"server_name\": \"production\" }"
     describe "Badge" $ do
       describe "badgeColor" $ do
         it "is red for failed results" $ do
@@ -85,18 +89,26 @@ main =
           let result = Semabadge.unsafeDropPrefix "h" "spam"
           Exception.evaluate result `shouldThrow` anyErrorCall
     describe "Semaphore" $ do
+      let responseWith body =
+            Client.Response
+              { Client.responseStatus = Http.ok200
+              , Client.responseVersion = Http.http11
+              , Client.responseHeaders = []
+              , Client.responseBody =
+                  LazyByteString.fromStrict (Semabadge.toUtf8 body)
+              , Client.responseCookieJar = Client.createCookieJar []
+              , Client.responseClose' = Client.ResponseClose (pure ())
+              }
+      describe "getBranchStatus" $ do
+        it "gets the branch status" $ do
+          Semabadge.getBranchStatus
+            (\_ -> pure (responseWith branchStatusJson))
+            (Semabadge.makeProject "semabadge")
+            (Semabadge.makeBranch "master")
+            Nothing `shouldReturn`
+            Right branchStatus
       describe "getSemaphore" $ do
-        let responseWith body =
-              Client.Response
-                { Client.responseStatus = Http.ok200
-                , Client.responseVersion = Http.http11
-                , Client.responseHeaders = []
-                , Client.responseBody =
-                    LazyByteString.fromStrict (Semabadge.toUtf8 body)
-                , Client.responseCookieJar = Client.createCookieJar []
-                , Client.responseClose' = Client.ResponseClose (pure ())
-                }
-            getJson path body =
+        let getJson path body =
               Semabadge.getSemaphore
                 (\_ -> pure (responseWith body))
                 Nothing
@@ -109,6 +121,14 @@ main =
           getJson "" "invalid" `shouldReturn`
             Left "Error in $: Failed reading: not a valid json value"
         it "succeeds" $ do getJson "" "null" `shouldReturn` Right Aeson.Null
+      describe "getServerStatus" $ do
+        it "gets the server status" $ do
+          Semabadge.getServerStatus
+            (\_ -> pure (responseWith serverStatusJson))
+            (Semabadge.makeProject "semabadge")
+            (Semabadge.makeServer "production")
+            Nothing `shouldReturn`
+            Right serverStatus
       describe "semaphoreUrl" $ do
         it "builds a URL without a token" $ do
           Semabadge.semaphoreUrl Nothing "/path" `shouldBe`
@@ -128,9 +148,7 @@ main =
         let parseBranchStatus =
               parseJson :: String -> Either String Semabadge.BranchStatus
         it "parses a branch status" $ do
-          parseBranchStatus
-            "{ \"result\": \"passed\", \"branch_name\": \"master\" }" `shouldBe`
-            Right branchStatus
+          parseBranchStatus branchStatusJson `shouldBe` Right branchStatus
         it "fails to parse an invalid branch status" $ do
           parseBranchStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
@@ -165,9 +183,7 @@ main =
         let parseServerStatus =
               parseJson :: String -> Either String Semabadge.ServerStatus
         it "parses a server status" $ do
-          parseServerStatus
-            "{ \"result\": \"passed\", \"server_name\": \"production\" }" `shouldBe`
-            Right serverStatus
+          parseServerStatus serverStatusJson `shouldBe` Right serverStatus
         it "fails to parse an invalid server status" $ do
           parseServerStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
