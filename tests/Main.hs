@@ -65,6 +65,9 @@ main =
         it "fails to parse an invalid branch status" $ do
           parseBranchStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
+      describe "Project" $ do
+        it "can be round tripped" $ do
+          Semabadge.unwrapProject (Semabadge.makeProject "it") `shouldBe` "it"
       describe "Result" $ do
         let parseResult = parseJson :: String -> Either String Semabadge.Result
         it "parses a failed result" $ do

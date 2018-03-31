@@ -19,6 +19,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
+import qualified Semabadge.Type.Project as Project
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.ServerStatus as ServerStatus
@@ -220,14 +221,14 @@ application token perform request respond = do
           token
           perform
           request
-          (Project project)
+          (Project.makeProject project)
           (Branch.makeBranch branch)
       ("GET", ["projects", project, "servers", server]) ->
         getServerBadgeHandler
           token
           perform
           request
-          (Project project)
+          (Project.makeProject project)
           (Server.makeServer server)
       _ -> notFoundHandler
   respond response
@@ -243,7 +244,7 @@ getBranchBadgeHandler ::
   => Token.Token
   -> Perform io
   -> Wai.Request
-  -> Project
+  -> Project.Project
   -> Branch.Branch
   -> io Wai.Response
 getBranchBadgeHandler token perform request project branch = do
@@ -259,7 +260,7 @@ getServerBadgeHandler ::
   => Token.Token
   -> Perform io
   -> Wai.Request
-  -> Project
+  -> Project.Project
   -> Server.Server
   -> io Wai.Response
 getServerBadgeHandler token perform request project server = do
@@ -273,7 +274,7 @@ getServerBadgeHandler token perform request project server = do
 getBranchStatus ::
      Monad io
   => Perform io
-  -> Project
+  -> Project.Project
   -> Branch.Branch
   -> Token.Token
   -> io (Maybe BranchStatus.BranchStatus)
@@ -283,7 +284,7 @@ getBranchStatus perform project branch token =
     token
     (concat
        [ "/projects/"
-       , unwrapProject project
+       , Project.unwrapProject project
        , "/"
        , Branch.unwrapBranch branch
        , "/status"
@@ -292,7 +293,7 @@ getBranchStatus perform project branch token =
 getServerStatus ::
      Monad io
   => Perform io
-  -> Project
+  -> Project.Project
   -> Server.Server
   -> Token.Token
   -> io (Maybe ServerStatus.ServerStatus)
@@ -302,7 +303,7 @@ getServerStatus perform project server token =
     token
     (concat
        [ "/projects/"
-       , unwrapProject project
+       , Project.unwrapProject project
        , "/servers/"
        , Server.unwrapServer server
        , "/status"
@@ -330,13 +331,6 @@ semaphoreUrl token path =
     , "?auth_token="
     , Token.unwrapToken token
     ]
-
-newtype Project =
-  Project String
-  deriving (Eq, Show)
-
-unwrapProject :: Project -> String
-unwrapProject (Project project) = project
 
 badgeForServer ::
      ServerStatus.ServerStatus -> Maybe String -> LazyByteString.ByteString
