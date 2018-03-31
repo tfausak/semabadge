@@ -13,6 +13,12 @@ import qualified Semabadge
 main :: IO ()
 main =
   hspec . parallel . describe "Semabadge" $ do
+    describe "Lens" $ do
+      describe "set" $ do
+        it "sets the value" $ do
+          let _1 :: Functor f => (l -> f l') -> (l, r) -> f (l', r)
+              _1 f (l, r) = fmap (\l' -> (l', r)) (f l)
+          Semabadge.set _1 "true" (True, ()) `shouldBe` ("true", ())
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do
