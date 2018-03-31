@@ -36,6 +36,7 @@ main =
             }
         serverStatusJson =
           "{ \"result\": \"passed\", \"server_name\": \"production\" }"
+    describe "Application" . describe "application" $ it "needs tests" pending
     describe "Badge" $ do
       describe "badgeColor" $ do
         it "is red for failed results" $ do

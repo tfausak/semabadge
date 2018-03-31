@@ -1,5 +1,6 @@
 module Semabadge
   ( Main.defaultMain
+  , Application.application
   , Badge.badgeColor
   , Badge.badgeForBranch
   , Badge.badgeForServer
@@ -42,6 +43,7 @@ module Semabadge
   , Version.versionString
   ) where
 
+import qualified Semabadge.Application as Application
 import qualified Semabadge.Badge as Badge
 import qualified Semabadge.Command as Command
 import qualified Semabadge.Handler as Handler
