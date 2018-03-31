@@ -33,14 +33,17 @@ getBranchBadgeHandler ::
      Monad io
   => Maybe Token.Token
   -> Semaphore.Perform io
+  -> (String -> io ())
   -> Wai.Request
   -> Project.Project
   -> Branch.Branch
   -> io Wai.Response
-getBranchBadgeHandler token perform request project branch = do
+getBranchBadgeHandler token perform warn request project branch = do
   result <- Semaphore.getBranchStatus perform project branch token
   case result of
-    Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Left problem -> do
+      warn problem
+      pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Right branchStatus -> do
       let maybeLabel = requestParam "label" request
       pure
@@ -53,14 +56,17 @@ getServerBadgeHandler ::
      Monad io
   => Maybe Token.Token
   -> Semaphore.Perform io
+  -> (String -> io ())
   -> Wai.Request
   -> Project.Project
   -> Server.Server
   -> io Wai.Response
-getServerBadgeHandler token perform request project server = do
+getServerBadgeHandler token perform warn request project server = do
   result <- Semaphore.getServerStatus perform project server token
   case result of
-    Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Left problem -> do
+      warn problem
+      pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
     Right serverStatus -> do
       let maybeLabel = requestParam "label" request
       pure

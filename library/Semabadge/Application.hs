@@ -11,6 +11,7 @@ import qualified Semabadge.Type.Project as Project
 import qualified Semabadge.Type.Server as Server
 import qualified Semabadge.Type.Token as Token
 import qualified Semabadge.Unicode as Unicode
+import qualified System.IO as IO
 
 application :: Maybe Token.Token -> Semaphore.Perform IO -> Wai.Application
 application token perform request respond = do
@@ -21,6 +22,7 @@ application token perform request respond = do
         Handler.getBranchBadgeHandler
           token
           perform
+          (IO.hPutStrLn IO.stderr)
           request
           (Project.makeProject project)
           (Branch.makeBranch branch)
@@ -28,6 +30,7 @@ application token perform request respond = do
         Handler.getServerBadgeHandler
           token
           perform
+          (IO.hPutStrLn IO.stderr)
           request
           (Project.makeProject project)
           (Server.makeServer server)
