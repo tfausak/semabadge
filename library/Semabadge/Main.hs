@@ -19,6 +19,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Lens as Lens
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
+import qualified Semabadge.Type.Config as Config
 import qualified Semabadge.Type.Project as Project
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.Server as Server
@@ -38,10 +39,10 @@ defaultMain = do
   manager <- Client.newManager Client.tlsManagerSettings
   let perform request = Client.httpLbs request manager
   Warp.runSettings
-    (settings (configHost config) (configPort config))
-    (application (configToken config) perform)
+    (settings (Config.configHost config) (Config.configPort config))
+    (application (Config.configToken config) perform)
 
-getConfig :: IO Config
+getConfig :: IO Config.Config
 getConfig = do
   args <- Environment.getArgs
   let (updates, unexpecteds, unknowns, errors) =
@@ -54,29 +55,21 @@ getConfig = do
       IO.hPutStrLn IO.stderr ("ERROR: invalid config: " ++ problem)
       Exit.exitFailure
     Right config -> do
-      Monad.when (configShowHelp config) printHelpAndExit
-      Monad.when (configShowVersion config) printVersionAndExit
+      Monad.when (Config.configShowHelp config) printHelpAndExit
+      Monad.when (Config.configShowVersion config) printVersionAndExit
       pure config
-
-data Config = Config
-  { configHost :: Warp.HostPreference
-  , configPort :: Warp.Port
-  , configShowHelp :: Bool
-  , configShowVersion :: Bool
-  , configToken :: Token.Token
-  } deriving (Eq, Show)
 
 options :: [Option]
 options = [helpOption, hostOption, portOption, tokenOption, versionOption]
 
-type Option = Console.OptDescr (Config -> Either String Config)
+type Option = Console.OptDescr (Config.Config -> Either String Config.Config)
 
 helpOption :: Option
 helpOption =
   Console.Option
     ['h', '?']
     ["help"]
-    (Console.NoArg (\config -> Right config {configShowHelp = True}))
+    (Console.NoArg (\config -> Right config {Config.configShowHelp = True}))
     "show the help and exit"
 
 hostOption :: Option
@@ -86,7 +79,7 @@ hostOption =
     ["host"]
     (Console.ReqArg
        (\rawHost config ->
-          Right config {configHost = String.fromString rawHost})
+          Right config {Config.configHost = String.fromString rawHost})
        "HOST")
     "host to bind"
 
@@ -101,7 +94,7 @@ portOption =
             Left message ->
               Left
                 (concat ["invalid port: ", show rawPort, " (", message, ")"])
-            Right port -> Right config {configPort = port})
+            Right port -> Right config {Config.configPort = port})
        "PORT")
     "port number to bind"
 
@@ -111,7 +104,8 @@ tokenOption =
     []
     ["token"]
     (Console.ReqArg
-       (\token config -> Right config {configToken = Token.makeToken token})
+       (\token config ->
+          Right config {Config.configToken = Token.makeToken token})
        "TOKEN")
     "Semaphore authentication token"
 
@@ -120,7 +114,7 @@ versionOption =
   Console.Option
     []
     ["version"]
-    (Console.NoArg (\config -> Right config {configShowVersion = True}))
+    (Console.NoArg (\config -> Right config {Config.configShowVersion = True}))
     "show the version number and exit"
 
 printErrorsAndExit :: [String] -> IO ()
@@ -147,19 +141,11 @@ printUnexpected unexpected =
     IO.stderr
     (concat ["WARNING: unexpected argument `", unexpected, "'"])
 
-buildConfig :: [Config -> Either String Config] -> Either String Config
+buildConfig ::
+     [Config.Config -> Either String Config.Config]
+  -> Either String Config.Config
 buildConfig updates =
-  Monad.foldM (\config update -> update config) defaultConfig updates
-
-defaultConfig :: Config
-defaultConfig =
-  Config
-    { configHost = String.fromString "127.0.0.1"
-    , configPort = 8080
-    , configShowHelp = False
-    , configShowVersion = False
-    , configToken = Token.makeToken "no-token-set"
-    }
+  Monad.foldM (\config update -> update config) Config.defaultConfig updates
 
 printHelpAndExit :: IO ()
 printHelpAndExit = do

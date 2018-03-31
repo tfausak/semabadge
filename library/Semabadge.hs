@@ -8,6 +8,8 @@ module Semabadge
   , Branch.makeBranch
   , Branch.unwrapBranch
   , BranchStatus.BranchStatus(..)
+  , Config.Config(..)
+  , Config.defaultConfig
   , Project.Project
   , Project.makeProject
   , Project.unwrapProject
@@ -31,6 +33,7 @@ import qualified Semabadge.List as List
 import qualified Semabadge.Main as Main
 import qualified Semabadge.Type.Branch as Branch
 import qualified Semabadge.Type.BranchStatus as BranchStatus
+import qualified Semabadge.Type.Config as Config
 import qualified Semabadge.Type.Project as Project
 import qualified Semabadge.Type.Result as Result
 import qualified Semabadge.Type.Server as Server

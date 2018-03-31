@@ -8,6 +8,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Version as Version
 import qualified Semabadge
@@ -65,6 +66,17 @@ main =
         it "fails to parse an invalid branch status" $ do
           parseBranchStatus "null" `shouldBe`
             Left "Error in $: expected record (:*:), encountered Null"
+      describe "Config" $ do
+        describe "defaultConfig" $ do
+          it "has reasonable defaults" $ do
+            let config = Semabadge.defaultConfig
+            Semabadge.configHost config `shouldBe`
+              String.fromString "127.0.0.1"
+            Semabadge.configPort config `shouldBe` 8080
+            Semabadge.configShowHelp config `shouldBe` False
+            Semabadge.configShowVersion config `shouldBe` False
+            Semabadge.configToken config `shouldBe`
+              Semabadge.makeToken "no-token-set"
       describe "Project" $ do
         it "can be round tripped" $ do
           Semabadge.unwrapProject (Semabadge.makeProject "it") `shouldBe` "it"
