@@ -17,14 +17,14 @@ getSemaphore ::
   => Perform io
   -> Maybe Token.Token
   -> String
-  -> io (Maybe json)
+  -> io (Either String json)
 getSemaphore perform token path = do
   request <-
     case Client.parseRequest (semaphoreUrl token path) of
       Left message -> fail (show message)
       Right request -> pure request
   response <- perform request
-  pure (Aeson.decode (Client.responseBody response))
+  pure (Aeson.eitherDecode (Client.responseBody response))
 
 semaphoreUrl :: Maybe Token.Token -> String -> String
 semaphoreUrl maybeToken path =

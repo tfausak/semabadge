@@ -232,8 +232,8 @@ getBranchBadgeHandler ::
 getBranchBadgeHandler token perform request project branch = do
   result <- getBranchStatus perform project branch token
   case result of
-    Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
-    Just branchStatus -> do
+    Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Right branchStatus -> do
       let maybeLabel = requestParam "label" request
       pure
         (svgResponse
@@ -252,8 +252,8 @@ getServerBadgeHandler ::
 getServerBadgeHandler token perform request project server = do
   result <- getServerStatus perform project server token
   case result of
-    Nothing -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
-    Just serverStatus -> do
+    Left _ -> pure (jsonResponse Http.internalServerError500 [] Aeson.Null)
+    Right serverStatus -> do
       let maybeLabel = requestParam "label" request
       pure
         (svgResponse
@@ -267,7 +267,7 @@ getBranchStatus ::
   -> Project.Project
   -> Branch.Branch
   -> Maybe Token.Token
-  -> io (Maybe BranchStatus.BranchStatus)
+  -> io (Either String BranchStatus.BranchStatus)
 getBranchStatus perform project branch token =
   Semaphore.getSemaphore
     perform
@@ -286,7 +286,7 @@ getServerStatus ::
   -> Project.Project
   -> Server.Server
   -> Maybe Token.Token
-  -> io (Maybe ServerStatus.ServerStatus)
+  -> io (Either String ServerStatus.ServerStatus)
 getServerStatus perform project server token =
   Semaphore.getSemaphore
     perform

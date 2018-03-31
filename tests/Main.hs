@@ -100,12 +100,13 @@ main =
               Semabadge.getSemaphore
                 (\_ -> pure (responseWith body))
                 Nothing
-                path :: IO (Maybe Aeson.Value)
+                path :: IO (Either String Aeson.Value)
         it "fails if the URL is invalid" $ do
           getJson "%" "" `shouldThrow` anyException
         it "fails if the response is invalid JSON" $ do
-          getJson "" "invalid" `shouldReturn` Nothing
-        it "succeeds" $ do getJson "" "null" `shouldReturn` Just Aeson.Null
+          getJson "" "invalid" `shouldReturn`
+            Left "Error in $: Failed reading: not a valid json value"
+        it "succeeds" $ do getJson "" "null" `shouldReturn` Right Aeson.Null
       describe "semaphoreUrl" $ do
         it "builds a URL without a token" $ do
           Semabadge.semaphoreUrl Nothing "/path" `shouldBe`
