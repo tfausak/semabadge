@@ -12,7 +12,7 @@ data Config = Config
   , configPort :: Warp.Port
   , configShowHelp :: Bool
   , configShowVersion :: Bool
-  , configToken :: Token.Token
+  , configToken :: Maybe Token.Token
   } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -22,5 +22,5 @@ defaultConfig =
     , configPort = 8080
     , configShowHelp = False
     , configShowVersion = False
-    , configToken = Token.makeToken "no-token-set"
+    , configToken = Nothing
     }

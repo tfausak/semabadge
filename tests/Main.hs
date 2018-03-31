@@ -75,8 +75,7 @@ main =
             Semabadge.configPort config `shouldBe` 8080
             Semabadge.configShowHelp config `shouldBe` False
             Semabadge.configShowVersion config `shouldBe` False
-            Semabadge.configToken config `shouldBe`
-              Semabadge.makeToken "no-token-set"
+            Semabadge.configToken config `shouldBe` Nothing
       describe "Project" $ do
         it "can be round tripped" $ do
           Semabadge.unwrapProject (Semabadge.makeProject "it") `shouldBe` "it"

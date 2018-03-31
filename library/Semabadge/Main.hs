@@ -105,7 +105,7 @@ tokenOption =
     ["token"]
     (Console.ReqArg
        (\token config ->
-          Right config {Config.configToken = Token.makeToken token})
+          Right config {Config.configToken = Just (Token.makeToken token)})
        "TOKEN")
     "Semaphore authentication token"
 
@@ -197,7 +197,7 @@ onExceptionResponse _ = jsonResponse Http.internalServerError500 [] Aeson.Null
 serverName :: ByteString.ByteString
 serverName = Unicode.toUtf8 ("semabadge-" ++ Version.versionString)
 
-application :: Token.Token -> Perform IO -> Wai.Application
+application :: Maybe Token.Token -> Perform IO -> Wai.Application
 application token perform request respond = do
   response <-
     case (requestMethod request, requestPath request) of
@@ -227,7 +227,7 @@ notFoundHandler = pure (jsonResponse Http.notFound404 [] Aeson.Null)
 
 getBranchBadgeHandler ::
      Monad io
-  => Token.Token
+  => Maybe Token.Token
   -> Perform io
   -> Wai.Request
   -> Project.Project
@@ -243,7 +243,7 @@ getBranchBadgeHandler token perform request project branch = do
 
 getServerBadgeHandler ::
      Monad io
-  => Token.Token
+  => Maybe Token.Token
   -> Perform io
   -> Wai.Request
   -> Project.Project
@@ -262,7 +262,7 @@ getBranchStatus ::
   => Perform io
   -> Project.Project
   -> Branch.Branch
-  -> Token.Token
+  -> Maybe Token.Token
   -> io (Maybe BranchStatus.BranchStatus)
 getBranchStatus perform project branch token =
   getSemaphore
@@ -281,7 +281,7 @@ getServerStatus ::
   => Perform io
   -> Project.Project
   -> Server.Server
-  -> Token.Token
+  -> Maybe Token.Token
   -> io (Maybe ServerStatus.ServerStatus)
 getServerStatus perform project server token =
   getSemaphore
@@ -298,7 +298,7 @@ getServerStatus perform project server token =
 getSemaphore ::
      (Aeson.FromJSON json, Monad io)
   => Perform io
-  -> Token.Token
+  -> Maybe Token.Token
   -> String
   -> io (Maybe json)
 getSemaphore perform token path = do
@@ -309,13 +309,14 @@ getSemaphore perform token path = do
   response <- perform request
   pure (Aeson.decode (Client.responseBody response))
 
-semaphoreUrl :: Token.Token -> String -> String
-semaphoreUrl token path =
+semaphoreUrl :: Maybe Token.Token -> String -> String
+semaphoreUrl maybeToken path =
   concat
     [ "https://semaphoreci.com/api/v1"
     , path
-    , "?auth_token="
-    , Token.unwrapToken token
+    , case maybeToken of
+        Nothing -> ""
+        Just token -> "?auth_token=" ++ Token.unwrapToken token
     ]
 
 badgeForServer ::
