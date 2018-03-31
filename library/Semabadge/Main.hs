@@ -10,7 +10,6 @@ import qualified Data.Aeson as Aeson (decode, encode)
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as LazyByteString
-import qualified Data.Maybe as Maybe
 import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified GHC.Generics as Generics
@@ -21,6 +20,7 @@ import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Semabadge.Lens as Lens
+import qualified Semabadge.List as List
 import qualified Semabadge.Unicode as Unicode
 import qualified Semabadge.Version as Version
 import qualified System.Console.GetOpt as Console
@@ -399,25 +399,9 @@ instance Aeson.FromJSON BranchStatus where
 optionsFor :: String -> Aeson.Options
 optionsFor prefix =
   Aeson.defaultOptions
-    {Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . unsafeDropPrefix prefix}
-
-unsafeDropPrefix :: (Eq a, Show a) => [a] -> [a] -> [a]
-unsafeDropPrefix prefix list =
-  Maybe.fromMaybe
-    (error (unwords [show prefix, "is not a prefix of", show list]))
-    (dropPrefix prefix list)
-
-dropPrefix :: Eq a => [a] -> [a] -> Maybe [a]
-dropPrefix prefix list =
-  case prefix of
-    [] -> Just list
-    ph:pt ->
-      case list of
-        [] -> Nothing
-        lh:lt ->
-          if lh == ph
-            then dropPrefix pt lt
-            else Nothing
+    { Aeson.fieldLabelModifier =
+        Aeson.camelTo2 '_' . List.unsafeDropPrefix prefix
+    }
 
 jsonResponse ::
      Aeson.ToJSON json

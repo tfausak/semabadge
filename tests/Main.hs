@@ -4,6 +4,7 @@ module Main
 
 import Test.Hspec
 
+import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Version as Version
 import qualified Semabadge
@@ -19,6 +20,18 @@ main =
           let _1 :: Functor f => (l -> f l') -> (l, r) -> f (l', r)
               _1 f (l, r) = fmap (\l' -> (l', r)) (f l)
           Semabadge.set _1 "true" (True, ()) `shouldBe` ("true", ())
+    describe "List" $ do
+      describe "dropPrefix" $ do
+        it "drops the prefix" $ do
+          Semabadge.dropPrefix "sp" "spam" `shouldBe` Just "am"
+        it "returns nothing when the prefix doesn't match" $ do
+          Semabadge.dropPrefix "h" "spam" `shouldBe` Nothing
+      describe "unsafeDropPrefix" $ do
+        it "drops the prefix" $ do
+          Semabadge.unsafeDropPrefix "sp" "spam" `shouldBe` "am"
+        it "throws an exception when the prefix doesn't match" $ do
+          Exception.evaluate (Semabadge.unsafeDropPrefix "h" "spam") `shouldThrow`
+            anyErrorCall
     describe "Unicode" $ do
       describe "fromUtf8" $ do
         it "decodes UTF-8" $ do
