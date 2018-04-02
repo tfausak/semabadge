@@ -31,5 +31,5 @@ FROM debian:9.3-slim
   # Install executable.
   COPY --from=build /root/.local/bin/semabadge /usr/local/bin/semabadge
   EXPOSE 80
-  ENV TOKEN=no-token-set
-  CMD semabadge --host 0.0.0.0 --port 80 --token $TOKEN
+  ENV PORT=80
+  CMD semabadge
