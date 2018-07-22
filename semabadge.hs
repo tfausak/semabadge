@@ -2,7 +2,8 @@
 
 module Main
   ( main
-  ) where
+  )
+where
 
 import qualified Control.Monad.IO.Class as MonadIO
 import qualified Data.Aeson as Aeson
@@ -75,13 +76,13 @@ notFoundHandler = do
 
 semaphore :: Aeson.FromJSON json => Token -> String -> IO json
 semaphore token path = do
-  let url =
-        concat
-          [ "https://semaphoreci.com/api/v1"
-          , path
-          , "?auth_token="
-          , unwrapToken token
-          ]
+  let
+    url = concat
+      [ "https://semaphoreci.com/api/v1"
+      , path
+      , "?auth_token="
+      , unwrapToken token
+      ]
   request <- Client.parseRequest url
   manager <- Tls.getGlobalManager
   response <- Client.httpLbs request manager
@@ -90,19 +91,17 @@ semaphore token path = do
     Right json -> pure json
 
 badgeFor :: Name -> Status -> LazyByteString.ByteString
-badgeFor name status =
-  Barrier.renderBadge
-    (Lens.set Barrier.right (colorFor status) Barrier.flat)
-    (unwrapName name)
-    (unwrapStatus status)
+badgeFor name status = Barrier.renderBadge
+  (Lens.set Barrier.right (colorFor status) Barrier.flat)
+  (unwrapName name)
+  (unwrapStatus status)
 
 colorFor :: Status -> Barrier.Color
-colorFor status =
-  case unwrapStatus status of
-    "failed" -> Barrier.red
-    "passed" -> Barrier.brightgreen
-    "pending" -> Barrier.yellow
-    _ -> Barrier.orange
+colorFor status = case unwrapStatus status of
+  "failed" -> Barrier.red
+  "passed" -> Barrier.brightgreen
+  "pending" -> Barrier.yellow
+  _ -> Barrier.orange
 
 data Config = Config
   { configPort :: Warp.Port
