@@ -35,6 +35,8 @@ main = do
     Scotty.get "/users/:user/projects/:project/branches/:branch"
       $ getUserBranchHandler config
     Scotty.get "/projects/:project/branches/:branch" $ getBranchHandler config
+    Scotty.get "/users/:user/projects/:project/servers/:server"
+      $ getUserServerHandler config
     Scotty.get "/projects/:project/servers/:server" $ getServerHandler config
     Scotty.notFound notFoundHandler
 
@@ -95,12 +97,37 @@ getBranchHandler config = do
   Scotty.setHeader "Content-Type" "image/svg+xml"
   Scotty.raw $ badgeFor (branchName result) (branchStatus result)
 
+getUserServerHandler :: Config -> Scotty.ActionM ()
+getUserServerHandler config = do
+  user <- Scotty.param "user"
+  project <- Scotty.param "project"
+  server <- Scotty.param "server"
+  maybeProject <- Scotty.liftAndCatchIO $ lookupProject config user project
+  case maybeProject of
+    Nothing -> do
+      Scotty.status Http.notFound404
+      Scotty.json Aeson.Null
+      Scotty.finish
+    Just p -> do
+      result <- Scotty.liftAndCatchIO
+        $ fetchServer config (projectHashId p) server
+      Scotty.setHeader "Content-Type" "image/svg+xml"
+      Scotty.raw $ badgeFor (serverName result) (serverStatus result)
+
+fetchServer :: Config -> ProjectId -> Text.Text -> IO Server
+fetchServer config project server = semaphore (configToken config) $ concat
+  [ "/projects/"
+  , Text.unpack $ unwrapProjectId project
+  , "/servers/"
+  , Text.unpack server
+  , "/status"
+  ]
+
 getServerHandler :: Config -> Scotty.ActionM ()
 getServerHandler config = do
   project <- Scotty.param "project"
   server <- Scotty.param "server"
-  let path = concat ["/projects/", project, "/servers/", server, "/status"]
-  result <- Scotty.liftAndCatchIO $ semaphore (configToken config) path
+  result <- Scotty.liftAndCatchIO $ fetchServer config project server
   Scotty.setHeader "Content-Type" "image/svg+xml"
   Scotty.raw $ badgeFor (serverName result) (serverStatus result)
 
