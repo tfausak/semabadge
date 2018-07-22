@@ -8,6 +8,7 @@ where
 import qualified Control.Monad.IO.Class as MonadIO
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as LazyText
 import qualified Data.Text.Lazy.IO as LazyText
@@ -31,6 +32,8 @@ main = do
     Scotty.middleware $ Middleware.gzip Middleware.def
     Scotty.defaultHandler defaultHandler
     Scotty.get "/ping" getPingHandler
+    Scotty.get "/users/:user/projects/:project/branches/:branch"
+      $ getUserBranchHandler config
     Scotty.get "/projects/:project/branches/:branch" $ getBranchHandler config
     Scotty.get "/projects/:project/servers/:server" $ getServerHandler config
     Scotty.notFound notFoundHandler
@@ -51,12 +54,44 @@ defaultHandler problem = do
 getPingHandler :: Scotty.ActionM ()
 getPingHandler = Scotty.json Aeson.Null
 
+getUserBranchHandler :: Config -> Scotty.ActionM ()
+getUserBranchHandler config = do
+  user <- Scotty.param "user"
+  project <- Scotty.param "project"
+  branch <- Scotty.param "branch"
+  maybeProject <- Scotty.liftAndCatchIO $ lookupProject config user project
+  case maybeProject of
+    Nothing -> do
+      Scotty.status Http.notFound404
+      Scotty.json Aeson.Null
+      Scotty.finish
+    Just p -> do
+      result <- Scotty.liftAndCatchIO
+        $ fetchBranch config (projectHashId p) branch
+      Scotty.setHeader "Content-Type" "image/svg+xml"
+      Scotty.raw $ badgeFor (branchName result) (branchStatus result)
+
+lookupProject :: Config -> UserName -> ProjectName -> IO (Maybe Project)
+lookupProject config user project = do
+  projects <- semaphore (configToken config) "/projects"
+  pure . Maybe.listToMaybe $ filter
+    (\p -> projectOwner p == user && projectName p == project)
+    projects
+
+fetchBranch :: Config -> ProjectId -> Text.Text -> IO Branch
+fetchBranch config project branch = semaphore (configToken config) $ concat
+  [ "/projects/"
+  , Text.unpack $ unwrapProjectId project
+  , "/"
+  , Text.unpack branch
+  , "/status"
+  ]
+
 getBranchHandler :: Config -> Scotty.ActionM ()
 getBranchHandler config = do
   project <- Scotty.param "project"
   branch <- Scotty.param "branch"
-  let path = concat ["/projects/", project, "/", branch, "/status"]
-  result <- Scotty.liftAndCatchIO $ semaphore (configToken config) path
+  result <- Scotty.liftAndCatchIO $ fetchBranch config project branch
   Scotty.setHeader "Content-Type" "image/svg+xml"
   Scotty.raw $ badgeFor (branchName result) (branchStatus result)
 
@@ -152,3 +187,45 @@ newtype Status = Status
 
 instance Aeson.FromJSON Status where
   parseJSON = fmap Status . Aeson.parseJSON
+
+data Project = Project
+  { projectHashId :: ProjectId
+  , projectName :: ProjectName
+  , projectOwner :: UserName
+  } deriving (Eq, Show)
+
+instance Aeson.FromJSON Project where
+  parseJSON =
+    Aeson.withObject "Project" $ \object ->
+      Project <$> object Aeson..: "hash_id" <*> object Aeson..: "name" <*>
+      object Aeson..: "owner"
+
+newtype ProjectId = ProjectId
+  { unwrapProjectId :: Text.Text
+  } deriving (Eq, Show)
+
+instance Aeson.FromJSON ProjectId where
+  parseJSON = fmap ProjectId . Aeson.parseJSON
+
+instance Scotty.Parsable ProjectId where
+  parseParam = Right . ProjectId . LazyText.toStrict
+
+newtype ProjectName =
+  ProjectName Text.Text
+  deriving (Eq, Show)
+
+instance Aeson.FromJSON ProjectName where
+  parseJSON = fmap ProjectName . Aeson.parseJSON
+
+instance Scotty.Parsable ProjectName where
+  parseParam = Right . ProjectName . LazyText.toStrict
+
+newtype UserName =
+  UserName Text.Text
+  deriving (Eq, Show)
+
+instance Aeson.FromJSON UserName where
+  parseJSON = fmap UserName . Aeson.parseJSON
+
+instance Scotty.Parsable UserName where
+  parseParam = Right . UserName . LazyText.toStrict
