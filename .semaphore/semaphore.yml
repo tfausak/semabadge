@@ -1,28 +1,21 @@
 version: v1.0
-name: First pipeline example
+name: I'm a little pipeline, short and stout.
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu1804
 
 blocks:
-  - name: "Build"
-    task:
-      jobs:
-      - name: Docker build
-        commands:
-          - checkout
-          - docker build --tag "taylorfausak/semabadge:commit-$SEMAPHORE_GIT_SHA" .
-
-  - name: "Push Image"
+  - name: Build and push
     task:
       secrets:
         - name: docker
       prologue:
         commands:
-          - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+          - docker login --username "$DOCKER_USERNAME" --password "$DOCKER_PASSWORD"
       jobs:
-      - name: Push
-        commands:
-          - checkout
-          - docker push "taylorfausak/semabadge:commit-$SEMAPHORE_GIT_SHA"
+        - name: Build
+          commands:
+            - checkout
+            - docker build --tag "taylorfausak/semabadge:commit-$SEMAPHORE_GIT_SHA" .
+            - docker push "taylorfausak/semabadge:commit-$SEMAPHORE_GIT_SHA"
